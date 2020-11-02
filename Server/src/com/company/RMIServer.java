@@ -114,7 +114,7 @@ public class RMIServer implements ILeiloes{
 
                 if( bidding > set.getValue().getValue()) {
                     set.getValue().getiNotification().sendNotification(
-                            "Your " + set.getValue().getValue() + "bidding is lower than current top "  + bidding);
+                            "Your " + set.getValue().getValue() + " bidding is lower than current top "  + bidding);
                 }
             }
 

@@ -20,7 +20,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="fb59cca4-bf60-4bfb-880a-41a4c9223b49" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/../Aula_Pratica_2/out/production/Aula_Pratica_2/com/company/INotificationIMPL.class" beforeDir="false" afterPath="$PROJECT_DIR$/../Aula_Pratica_2/out/production/Aula_Pratica_2/com/company/INotificationIMPL.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Aula_Pratica_2/out/production/Aula_Pratica_2/com/company/Main.class" beforeDir="false" afterPath="$PROJECT_DIR$/../Aula_Pratica_2/out/production/Aula_Pratica_2/com/company/Main.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Aula_Pratica_2/src/com/company/INotificationIMPL.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Aula_Pratica_2/src/com/company/INotificationIMPL.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Aula_Pratica_2/src/com/company/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Aula_Pratica_2/src/com/company/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/company/RMIServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/company/RMIServer.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -91,21 +96,21 @@
       <screen x="0" y="23" width="1440" height="877" />
     </state>
     <state x="538" y="195" key="#com.intellij.ide.util.MemberChooser/0.23.1440.877@0.23.1440.877" timestamp="1604355962124" />
-    <state width="678" height="217" key="GridCell.Tab.0.bottom" timestamp="1604360044135">
+    <state width="678" height="217" key="GridCell.Tab.0.bottom" timestamp="1604360805962">
       <screen x="0" y="23" width="1440" height="877" />
     </state>
-    <state width="678" height="217" key="GridCell.Tab.0.bottom/0.23.1440.877@0.23.1440.877" timestamp="1604360044135" />
-    <state width="678" height="217" key="GridCell.Tab.0.center" timestamp="1604360044133">
+    <state width="678" height="217" key="GridCell.Tab.0.bottom/0.23.1440.877@0.23.1440.877" timestamp="1604360805962" />
+    <state width="678" height="217" key="GridCell.Tab.0.center" timestamp="1604360805960">
       <screen x="0" y="23" width="1440" height="877" />
     </state>
-    <state width="678" height="217" key="GridCell.Tab.0.center/0.23.1440.877@0.23.1440.877" timestamp="1604360044133" />
-    <state width="678" height="217" key="GridCell.Tab.0.left" timestamp="1604360044133">
+    <state width="678" height="217" key="GridCell.Tab.0.center/0.23.1440.877@0.23.1440.877" timestamp="1604360805960" />
+    <state width="678" height="217" key="GridCell.Tab.0.left" timestamp="1604360805960">
       <screen x="0" y="23" width="1440" height="877" />
     </state>
-    <state width="678" height="217" key="GridCell.Tab.0.left/0.23.1440.877@0.23.1440.877" timestamp="1604360044133" />
-    <state width="678" height="217" key="GridCell.Tab.0.right" timestamp="1604360044134">
+    <state width="678" height="217" key="GridCell.Tab.0.left/0.23.1440.877@0.23.1440.877" timestamp="1604360805960" />
+    <state width="678" height="217" key="GridCell.Tab.0.right" timestamp="1604360805961">
       <screen x="0" y="23" width="1440" height="877" />
     </state>
-    <state width="678" height="217" key="GridCell.Tab.0.right/0.23.1440.877@0.23.1440.877" timestamp="1604360044134" />
+    <state width="678" height="217" key="GridCell.Tab.0.right/0.23.1440.877@0.23.1440.877" timestamp="1604360805961" />
   </component>
 </project>

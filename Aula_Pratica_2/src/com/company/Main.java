@@ -31,8 +31,9 @@ public class Main
                 System.out.println(object.Id);
             }
 
-            svc.licitar("1", new INotificationIMPL(port++));
-
+            svc.licitar("1", new INotificationIMPL("1", port++));
+            svc.licitar("2", new INotificationIMPL("2", port++));
+            svc.licitar("2", new INotificationIMPL("3", port++));
 
 
         }
@@ -49,7 +50,7 @@ public class Main
     public static void startLeilao(String n, ILeiloes svc, int port) throws RemoteException {
         SomeObject someObject = new SomeObject();
         someObject.Id = n;
-        String result = svc.initLeilao(someObject, new INotificationIMPL(port));
+        String result = svc.initLeilao(someObject, new INotificationIMPL(n, port));
         System.out.println(result);
     }
 }
