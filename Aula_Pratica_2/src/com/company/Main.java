@@ -4,6 +4,7 @@ package com.company;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 
 
 public class Main
@@ -21,11 +22,9 @@ public class Main
 
             SomeObject someObject = new SomeObject();
             someObject.Id = "1";
-            svc.initLeilao(someObject, new INotificationIMPL());
+            String result = svc.initLeilao(someObject, new INotificationIMPL(7002));
 
-
-            svc.licitar("1", new INotificationIMPL());
-
+            System.out.println(result);
 
             SomeObject[] objectsArray = svc.getAllLeiloes();
             for(SomeObject object : objectsArray)
@@ -33,8 +32,7 @@ public class Main
                 System.out.println(object.Id);
             }
 
-
-
+            svc.licitar("1", new INotificationIMPL(7003));
 
 
 

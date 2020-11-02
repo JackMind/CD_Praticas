@@ -65,10 +65,10 @@ public class RMIServer implements ILeiloes{
 
     @Override                                       // Notification to notify later
     public String initLeilao(SomeObject someObject, INotification iNotification) throws RemoteException {
-        if(iNotification != null){
+        if(iNotification == null){
             return "Please provide a not null iNotification";
         }
-        if(someObject != null){
+        if(someObject == null){
             return "Please provide a not null SomeObject";
         }
         if(someObject.Id.isEmpty()){
@@ -78,7 +78,7 @@ public class RMIServer implements ILeiloes{
             return "Leilao already started for id: " + someObject.Id;
         }
         repository.put(someObject.Id, new Info(0, iNotification));
-        return someObject.Id;
+        return "Leilao inited for: " + someObject.Id;
     }
 
     @Override
@@ -94,7 +94,7 @@ public class RMIServer implements ILeiloes{
 
     @Override           // Id   , notify now
     public void licitar(String s, INotification iNotification) throws RemoteException {
-        if(iNotification != null){
+        if(iNotification == null){
             System.out.println("iNotification null");
             return;
         }
