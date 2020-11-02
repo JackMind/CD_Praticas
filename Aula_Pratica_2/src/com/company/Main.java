@@ -19,12 +19,11 @@ public class Main
             Registry registry = LocateRegistry.getRegistry(serverIP, registerPort);
             ILeiloes svc = (ILeiloes) registry.lookup("Batatas");
 
+            int port = 7002;
 
-            SomeObject someObject = new SomeObject();
-            someObject.Id = "1";
-            String result = svc.initLeilao(someObject, new INotificationIMPL(7002));
-
-            System.out.println(result);
+            startLeilao("1", svc, port++);
+            startLeilao("2", svc, port++);
+            startLeilao("3", svc, port++);
 
             SomeObject[] objectsArray = svc.getAllLeiloes();
             for(SomeObject object : objectsArray)
@@ -32,9 +31,7 @@ public class Main
                 System.out.println(object.Id);
             }
 
-            svc.licitar("1", new INotificationIMPL(7003));
-
-
+            svc.licitar("1", new INotificationIMPL(port++));
 
 
 
@@ -47,5 +44,12 @@ public class Main
         {
             System.err.println("Client unhandled exception: " + ex.toString());
         }
+    }
+
+    public static void startLeilao(String n, ILeiloes svc, int port) throws RemoteException {
+        SomeObject someObject = new SomeObject();
+        someObject.Id = n;
+        String result = svc.initLeilao(someObject, new INotificationIMPL(port));
+        System.out.println(result);
     }
 }
