@@ -1,5 +1,3 @@
-package com.company;
-
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -18,7 +16,7 @@ public class RMIServer implements ILeiloes{
     public static void main(String[] args) {
         try {
             if(args.length > 0){
-                serverIP = args[1];
+                serverIP = args[0];
                 System.out.println(serverIP);
             }
             repository = new HashMap<>();
@@ -75,23 +73,21 @@ public class RMIServer implements ILeiloes{
         if(someObject == null){
             return "Please provide a not null SomeObject";
         }
-        if(someObject.Id.isEmpty()){
+        if(someObject.getId().isEmpty()){
             return "Please provide a valid Id";
         }
-        if(repository.containsKey(someObject.Id)){
-            return "Leilao already started for id: " + someObject.Id;
+        if(repository.containsKey(someObject.getId())){
+            return "Leilao already started for id: " + someObject.getId();
         }
-        repository.put(someObject.Id, new Info(0, iNotification));
-        return "Leilao inited for: " + someObject.Id;
+        repository.put(someObject.getId(), new Info(0, iNotification));
+        return "Leilao inited for: " + someObject.getId();
     }
 
     @Override
     public SomeObject[] getAllLeiloes() throws RemoteException {
         List<SomeObject> list = new LinkedList<>();
         repository.forEach((key, value) -> {
-            SomeObject a = new SomeObject();
-            a.Id = key;
-            list.add(a);
+            list.add(new SomeObject(key));
         });
         return list.toArray(SomeObject[]::new);
     }
