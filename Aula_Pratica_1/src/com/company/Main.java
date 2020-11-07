@@ -7,6 +7,7 @@ import playgamecontract.Reply;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.Scanner;
 
 
 public class Main
@@ -21,22 +22,34 @@ public class Main
             Registry registry = LocateRegistry.getRegistry(serverIP, registerPort);
             IPlayGame svc =(IPlayGame)registry.lookup("GameServer");
 
-            for(int x = 0; x <= 6; x++)
-            {
-                for(int y = 0; y <= 6; y++)
-                {
-                    Bet bet = new Bet(47926, x, y);
-                    Reply reply = svc.playGame(bet);
+            System.out.println();
+            System.out.println();
+            System.out.println("======== Jogo Pesca No Rio ========");
+            System.out.println();
 
-                    System.out.println("=============================");
-                    System.out.println("X: " + x + " | Y: " + y);
-                    System.out.println("No Tries: " + reply.getNtries());
-                    System.out.println("Success: " + reply.isSuccess());
-                    System.out.println("Thing: " + reply.getThing());
-                    System.out.println("=============================");
-                    System.out.println();
-                    System.out.println();
-                }
+
+            while(true)
+            {
+                Scanner scan = new Scanner(System.in);
+                System.out.println("== Nova Jogada ==");
+                System.out.print("Introduza a coordenada x: ");
+                int x = scan.nextInt();
+                System.out.print("Introduza a coordenada y: ");
+                int y = scan.nextInt();
+
+                Bet bet = new Bet(47926, x, y);
+                Reply reply = svc.playGame(bet);
+
+                System.out.println();
+                System.out.println("============== JOGADA ===============");
+                System.out.println("X: " + x + " | Y: " + y);
+                System.out.println("N. Tries: " + reply.getNtries());
+                System.out.println("Success: " + reply.isSuccess());
+                System.out.println("Thing: " + reply.getThing());
+                System.out.println("=====================================");
+                System.out.println();
+                System.out.println();
+
             }
 
 
