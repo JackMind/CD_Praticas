@@ -42,7 +42,7 @@ public class RMIServer implements ILeiloes{
     }
 
     class Info{
-        private int value;
+        private float value;
         private INotification iNotification;
 
         public Info(int value, INotification iNotification) {
@@ -50,11 +50,11 @@ public class RMIServer implements ILeiloes{
             this.iNotification = iNotification;
         }
 
-        public void setValue(int value) {
+        public void setValue(float value) {
             this.value = value;
         }
 
-        public int getValue() {
+        public float getValue() {
             return value;
         }
 
@@ -66,21 +66,21 @@ public class RMIServer implements ILeiloes{
 
 
     @Override                                       // Notification to notify later
-    public String initLeilao(SomeObject someObject, INotification iNotification) throws RemoteException {
+    public void initLeilao(SomeObject someObject, INotification iNotification) throws RemoteException {
         if(iNotification == null){
-            return "Please provide a not null iNotification";
+            return;
         }
         if(someObject == null){
-            return "Please provide a not null SomeObject";
+            iNotification.sendNotification("Please provide a not null SomeObject");
         }
         if(someObject.getId().isEmpty()){
-            return "Please provide a valid Id";
+            iNotification.sendNotification( "Please provide a valid Id");
         }
         if(repository.containsKey(someObject.getId())){
-            return "Leilao already started for id: " + someObject.getId();
+            iNotification.sendNotification( "Leilao already started for id: " + someObject.getId());
         }
         repository.put(someObject.getId(), new Info(0, iNotification));
-        return "Leilao inited for: " + someObject.getId();
+        iNotification.sendNotification( "Leilao inited for: " + someObject.getId());
     }
 
     @Override
@@ -93,7 +93,7 @@ public class RMIServer implements ILeiloes{
     }
 
     @Override           // Id   , notify now
-    public void licitar(String s, INotification iNotification) throws RemoteException {
+    public void licitar(String s, float v, INotification iNotification) throws RemoteException {
         if(iNotification == null){
             System.out.println("iNotification null");
             return;
@@ -102,19 +102,17 @@ public class RMIServer implements ILeiloes{
             iNotification.sendNotification("There is no leilão started for id: " + s);
         }
 
-        int bidding = repository.get(s).getValue();
-        bidding++;
-        repository.get(s).setValue(bidding);
+        repository.get(s).setValue(v);
 
-        iNotification.sendNotification("Your current bidding is now " + bidding);
+        iNotification.sendNotification("Curren tbididng for object " + s + " is now " + v);
 
         for (Map.Entry<String, Info> set: repository.entrySet()){
 
             if(!set.getKey().equals(s)){
 
-                if( bidding > set.getValue().getValue()) {
+                if( v > set.getValue().getValue()) {
                     set.getValue().getiNotification().sendNotification(
-                            "Your " + set.getValue().getValue() + " bidding is lower than current top "  + bidding);
+                            "Your " + set.getValue().getValue() + " bidding is lower than current top "  + v);
                 }
             }
 

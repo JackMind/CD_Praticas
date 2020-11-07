@@ -1,4 +1,6 @@
-public class SomeObject {
+import java.io.Serializable;
+
+public class SomeObject implements Serializable {
     private String id;
 
     public SomeObject() {
