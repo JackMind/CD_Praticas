@@ -1,3 +1,10 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "rpcstubs";
+
+package controlservice;
+
 service ControlService {
     rpc Enter(Initial) returns(Void);// Entrar na estrada
     rpc Warning(stream WarnMsg) returns (stream WarnMsg);// emissão/receção de eventos
@@ -12,7 +19,8 @@ message Initial {
 }
 
 message FinalPoint {
-    int32 outPoint=1; // ponto de saída
+    string Id = 1; //matriculado veículo
+    int32 outPoint=2; // ponto de saída
 }
 
 message Payment {
@@ -21,7 +29,7 @@ message Payment {
 
 message WarnMsg {
     string Id=1; // Id do emissor/recetor do evento
-    string warning = 1; // avisos sobre eventos na estrada
+    string warning = 2; // avisos sobre eventos na estrada
 }
 
 

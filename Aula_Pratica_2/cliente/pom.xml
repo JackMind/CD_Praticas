@@ -33,8 +33,8 @@
         </dependency>
         <!-- Dependência explícita -->
         <dependency>
-            <groupId>cd</groupId>
-            <artifactId>Control</artifactId>
+            <groupId>org.example</groupId>
+            <artifactId>rpcContrato</artifactId>
             <version>1.0</version>
             <scope>system</scope>
             <systemPath>${basedir}/../lib/rpcContrato-1.0-SNAPSHOT.jar</systemPath>
