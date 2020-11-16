@@ -22,9 +22,7 @@ public class Cliente {
 
         Initial initial = Initial.newBuilder().setId("123456").setInPoint(1).build();
 
-        ControlServiceGrpc.ControlServiceBlockingStub
-                blockingStub = new ControlServiceGrpc.newBlockingStub(channel);
-
+        ControlServiceGrpc.ControlServiceBlockingStub blockingStub = ControlServiceGrpc.newBlockingStub(channel);
 
         blockingStub.enter(initial);
         System.out.println("Client " +initial.getId() + "inited ride on " + initial.getInPoint());
@@ -47,8 +45,15 @@ public class Cliente {
         while (!warningObserver.isCompleted.get()) {
 
             System.out.println("doing something");
-            Thread.sleep(2000);
 
+            try
+            {
+                Thread.sleep(2000);
+            }
+            catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
         }
 
 
