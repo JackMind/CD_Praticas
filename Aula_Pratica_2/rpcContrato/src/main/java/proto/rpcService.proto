@@ -1,0 +1,27 @@
+service ControlService {
+    rpc Enter(Initial) returns(Void);// Entrar na estrada
+    rpc Warning(stream WarnMsg) returns (stream WarnMsg);// emissão/receção de eventos
+    rpc Leave(FinalPoint) returns (Payment);// Sair da estrada
+}
+
+message Void { }
+
+message Initial {
+    string Id = 1; //matriculado veículo
+    int32 inPoint = 2; // ponto de entrada
+}
+
+message FinalPoint {
+    int32 outPoint=1; // ponto de saída
+}
+
+message Payment {
+    float value=1; // valor a pagar
+}
+
+message WarnMsg {
+    string Id=1; // Id do emissor/recetor do evento
+    string warning = 1; // avisos sobre eventos na estrada
+}
+
+

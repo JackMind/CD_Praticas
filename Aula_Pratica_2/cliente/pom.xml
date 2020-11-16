@@ -34,10 +34,10 @@
         <!-- Dependência explícita -->
         <dependency>
             <groupId>cd</groupId>
-            <artifactId>Contract</artifactId>
+            <artifactId>Control</artifactId>
             <version>1.0</version>
             <scope>system</scope>
-            <systemPath>${basedir}/../lib/CentralContract-1.0.jar</systemPath>
+            <systemPath>${basedir}/../lib/rpcContrato-1.0-SNAPSHOT.jar</systemPath>
         </dependency>
     </dependencies>
 
