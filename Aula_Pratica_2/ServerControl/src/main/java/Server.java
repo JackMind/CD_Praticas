@@ -21,11 +21,17 @@ public class Server extends ControlServiceGrpc.ControlServiceImplBase
     private static Map<String, Initial> VeiculosEstrada;
 
     private static final int GROUP_ID = 12;
-    private static final String svcIP = "35.230.146.225";
-    private static final int svcPort = 7500;
+    private static String svcIP = "35.230.146.225";
+    private static int svcPort = 7500;
 
     public static void main(String[] args)
     {
+        if(args.length > 0){
+            svcIP = args[0].isEmpty() ? svcIP : args[0];
+            svcPort = args[1].isEmpty() ? svcPort : Integer.parseInt( args[1] );
+        }
+        System.out.println("Server ip: " + svcIP + " ,Server port:  " + svcPort);
+
         try
         {
             channel = ManagedChannelBuilder.forAddress(svcIP, svcPort).usePlaintext().build();
@@ -65,12 +71,21 @@ public class Server extends ControlServiceGrpc.ControlServiceImplBase
         if(initialPoint != null)
         {
             //Obter Valor da Tarifa
-            Track track = Track.newBuilder().setGroup(GROUP_ID).setInPoint(initialPoint.getInPoint()).setOutPoint(request.getOutPoint()).build();
+            Track track = Track.newBuilder()
+                    .setGroup(GROUP_ID)
+                    .setInPoint(initialPoint.getInPoint())
+                    .setOutPoint(request.getOutPoint()).build();
             Tariff tariff = blockingStub.payment(track);
 
             //Gerar Payment e Enviar ao cliente
             Payment pagamento = Payment.newBuilder().setValue(tariff.getValue()).build();
             responseObserver.onNext(pagamento);
+
+            VeiculosEstrada.remove(request.getId());
+
+            responseObserver.onCompleted();
+        }else{
+            responseObserver.onError(new RuntimeException("No car"));
             responseObserver.onCompleted();
         }
     }
@@ -80,6 +95,7 @@ public class Server extends ControlServiceGrpc.ControlServiceImplBase
     public StreamObserver<WarnMsg> warning(StreamObserver<WarnMsg> responseObserver)
     {
 
+        re
         //RECEBER A MENSAGEM DE 1
         //FAZER BROADCAST PARA TODOS
 
