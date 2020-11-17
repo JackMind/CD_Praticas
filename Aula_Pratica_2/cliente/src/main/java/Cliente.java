@@ -1,11 +1,14 @@
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import rpcstubs.*;
 
+import java.util.concurrent.TimeUnit;
+
 public class Cliente {
 
-    static String svcIP="35.230.146.225";
+    static String svcIP="localhost";
     static int svcPort=6000;
 
     public static void main(String[] args) {
@@ -20,12 +23,23 @@ public class Cliente {
                 .forAddress(svcIP, svcPort)
                 .usePlaintext().build();
 
-        Initial initial = Initial.newBuilder().setId("123456").setInPoint(1).build();
+        String ID = "123456";
+        int INIT_POINT = 1;
+        int OUT_POINT = 3;
 
-        ControlServiceGrpc.ControlServiceBlockingStub blockingStub = ControlServiceGrpc.newBlockingStub(channel);
+        Initial initial = Initial.newBuilder().setId(ID).setInPoint(INIT_POINT).build();
 
-        blockingStub.enter(initial);
-        System.out.println("Client " +initial.getId() + "inited ride on " + initial.getInPoint());
+        try {
+            ControlServiceGrpc
+                    .newBlockingStub(channel)
+                    .withDeadlineAfter(5, TimeUnit.SECONDS)
+                    .enter(initial);
+        }catch (StatusRuntimeException ex){
+            System.out.println("Server control did not respond, there is a ghost rider on the road!");
+            return;
+        }
+
+        System.out.println("Client " +initial.getId() + " initiated ride on " + initial.getInPoint() + " position");
 
 
         ControlServiceGrpc.ControlServiceStub noBlockStub = ControlServiceGrpc.newStub(channel);
@@ -35,6 +49,7 @@ public class Cliente {
         StreamObserver<WarnMsg> serverObserver = noBlockStub.warning(warningObserver);
 
         WarnMsg warnMsg = WarnMsg.newBuilder()
+                .setId(ID)
                 .setWarning("Danger on the road "
                         + initial.getId()
                         + " entered on the "
@@ -56,18 +71,28 @@ public class Cliente {
             }
         }
 
-
-        FinalPoint finalPoint = FinalPoint.newBuilder().setOutPoint(3).build();
+        FinalPoint finalPoint = FinalPoint.newBuilder().setId(ID).setOutPoint(OUT_POINT).build();
 
         WarnMsg finalWarnMsg = WarnMsg.newBuilder()
+                .setId(ID)
                 .setWarning(initial.getId()
                         + " exiting on point "
                         + finalPoint.getOutPoint()).build();
 
         serverObserver.onNext(finalWarnMsg);
 
+        Payment payment;
+        try{
+            payment = ControlServiceGrpc
+                    .newBlockingStub(channel)
+                    .withDeadlineAfter(5, TimeUnit.SECONDS)
+                    .leave(finalPoint);
+        }catch (StatusRuntimeException ex){
+            System.out.println("Control or Central server did not respond, car did not have to pay :) !");
+            return;
+        }
 
-        Payment payment = blockingStub.leave(finalPoint);
+        System.out.println("Received payment! " + payment);
 
         WarnMsg payWarnMsg = WarnMsg.newBuilder()
                 .setWarning(initial.getId()
