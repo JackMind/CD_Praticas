@@ -7,12 +7,13 @@ import io.grpc.stub.ClientResponseObserver;
 import io.grpc.stub.StreamObserver;
 import rpcstubs.*;
 
+import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public class Cliente {
 
-    static String svcIP="localhost";
+    static String svcIP="34.105.247.119";
     static int svcPort=6000;
 
     static ManagedChannel channel;
@@ -30,8 +31,11 @@ public class Cliente {
                 .usePlaintext().build();
 
         enterAndRegisterWarnings("6543", 1);
-        normalBehaviour("123456", 1, 3);
+        enterAndRegisterWarnings("65234243", 1);
+        enterAndRegisterWarnings("6546743", 1);
 
+        //normalBehaviour("123456", 1, 3);
+        Scanner scan= new Scanner(System.in); scan.nextLine();
     }
 
     public static void enterAndRegisterWarnings(String ID, int INIT_POINT){
