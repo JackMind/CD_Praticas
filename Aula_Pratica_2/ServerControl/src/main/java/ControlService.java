@@ -91,7 +91,7 @@ public class ControlService extends ControlServiceGrpc.ControlServiceImplBase{
     public StreamObserver<WarnMsg> warning(StreamObserver<WarnMsg> responseObserver)
     {
         ServerObserver observer = new ServerObserver(responseObserver);
-        MessageBroadCast.getInstance().clientsObservers.put(observer.observerId, observer);
+        Server.messageBroadCast.clientsObservers.put(observer.observerId, responseObserver);
         return observer;
     }
 }

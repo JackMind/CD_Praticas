@@ -14,11 +14,11 @@ public class ServerObserver implements StreamObserver<WarnMsg> {
     }
 
     @Override
-    public void onNext(WarnMsg warnMsg) {
-
-        System.out.println("New warning received! " + warnMsg + " on observerId " + this.observerId);
-        MessageBroadCast.getInstance().messages.add(warnMsg);
-        System.out.println("Messages size: "+MessageBroadCast.getInstance().messages.size());
+    public void onNext(WarnMsg warnMsg)
+    {
+        //System.out.println("New warning received! " + warnMsg + " on observerId " + this.observerId);
+        Server.messageBroadCast.messages.add(warnMsg);
+        //System.out.println("Messages size: "+Server.messageBroadCast.messages.size());
     }
 
     @Override
@@ -28,7 +28,7 @@ public class ServerObserver implements StreamObserver<WarnMsg> {
 
     @Override
     public void onCompleted() {
-        MessageBroadCast.getInstance().clientsObservers.remove(observerId);
+        Server.messageBroadCast.clientsObservers.remove(observerId);
         this.clientObserver.onCompleted();
     }
 }

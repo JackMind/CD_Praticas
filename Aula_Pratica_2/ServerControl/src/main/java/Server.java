@@ -25,6 +25,8 @@ public class Server {
     private static int centralPort = 7500;
     private static int svcPort = 6000;
 
+    public static MessageBroadCast messageBroadCast;
+
     public static void main(String[] args)
     {
         if(args.length > 0){
@@ -39,7 +41,7 @@ public class Server {
                 .usePlaintext()
                 .build();
 
-        Track track = Track.newBuilder()
+        /*Track track = Track.newBuilder()
                 .setGroup(GROUP_ID)
                 .setInPoint(1)
                 .setOutPoint(2).build();
@@ -54,7 +56,7 @@ public class Server {
             System.out.println("Central service is OK! " + tariff);
         }catch (StatusRuntimeException ex){
             return;
-        }
+        }*/
 
         veiculosEstrada = new HashMap<>();
         observers = new HashMap<>();
@@ -70,7 +72,8 @@ public class Server {
             svc.start();
 
 
-            new Thread(MessageBroadCast.getInstance()).start();
+            messageBroadCast = new MessageBroadCast();
+            new Thread(messageBroadCast).start();
 
             System.out.println("Grpc Server started, listening on " + svcPort);
             Scanner scan= new Scanner(System.in); scan.nextLine();

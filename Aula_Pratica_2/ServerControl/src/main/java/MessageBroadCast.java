@@ -7,36 +7,37 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class MessageBroadCast implements Runnable{
 
-    public final Map<UUID, ServerObserver> clientsObservers;
+    public final Map<UUID, StreamObserver<WarnMsg>> clientsObservers;
     public final Deque<WarnMsg> messages;
 
-    private MessageBroadCast() {
+    MessageBroadCast() {
         this.clientsObservers = new ConcurrentHashMap<>();
         this.messages = new ArrayDeque<>();
     }
 
-    private static MessageBroadCast _instance;
-
-    public static MessageBroadCast getInstance(){
-        if(_instance == null){
-            return new MessageBroadCast();
-        }
-        return _instance;
-    }
-
-
     @Override
-    public void run() {
+    public void run()
+    {
         System.out.println("MessageBroadCast thread started!");
-        while (true){
-
-            while (!this.messages.isEmpty()){
+        while (true)
+        {
+            if(!this.messages.isEmpty())
+            {
                 System.out.println("Got messages!");
                 final WarnMsg warnMsg = this.messages.pop();
-                System.out.println("Sending " + warnMsg);
-                this.clientsObservers.forEach((uuid, observer) -> observer.onNext(warnMsg));
+
+                for(Map.Entry<UUID,StreamObserver<WarnMsg>> observer : clientsObservers.entrySet())
+                {
+                    System.out.println("Broadcasting to " + observer.getKey());
+                    observer.getValue().onNext(warnMsg);
+                }
             }
 
+            try {
+                Thread.sleep(2*1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
