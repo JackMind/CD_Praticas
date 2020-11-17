@@ -25,12 +25,12 @@ public class Cliente {
                 .forAddress(svcIP, svcPort)
                 .usePlaintext().build();
 
-        enter("6543", 1);
+        enterAndRegisterWarnings("6543", 1);
         normalBehaviour("123456", 1, 3);
 
     }
 
-    public static void normalBehaviour(String ID, int INIT_POINT, int OUT_POINT){
+    public static void enterAndRegisterWarnings(String ID, int INIT_POINT){
         try{
             enter(ID, INIT_POINT);
 
@@ -38,21 +38,35 @@ public class Cliente {
                     .newStub(channel)
                     .warning(new WarningObserver());
 
-            sendWarning(warningObserver, ID, "Danger on the road "
+            //warningObserver.onNext(WarnMsg.newBuilder().setId(ID).build());
+
+        }catch (Exception ex){
+            System.out.println(ex);
+        }
+    }
+    public static void normalBehaviour(String ID, int INIT_POINT, int OUT_POINT){
+        try{
+            enter(ID, INIT_POINT);
+
+            StreamObserver<WarnMsg> serverObserver = ControlServiceGrpc
+                    .newStub(channel)
+                    .warning(new WarningObserver());
+
+            sendWarning(serverObserver, ID, "Danger on the road "
                     + ID + " entered on the " + INIT_POINT + " entry");
 
-            System.out.println(ID + " Doing stunts... ");
+            System.out.println("Car " + ID + " Doing stunts... ");
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException e) { e.printStackTrace(); }
 
-            sendWarning(warningObserver, ID,ID + " exiting on point " + OUT_POINT);
+            sendWarning(serverObserver, ID,ID + " exiting on point " + OUT_POINT);
 
             Payment payment = leave(ID, OUT_POINT);
 
-            sendWarning(warningObserver, ID, ID + " payed " + payment);
+            sendWarning(serverObserver, ID, ID + " payed " + payment);
 
-            warningObserver.onCompleted();
+            serverObserver.onCompleted();
         }catch (Exception ex){
             System.out.println(ex);
         }
@@ -66,6 +80,7 @@ public class Cliente {
                     .newBlockingStub(channel)
                     .withDeadlineAfter(5, TimeUnit.SECONDS)
                     .enter(initial);
+
         }catch (StatusRuntimeException ex){
             System.out.println("Server control did not respond, there is a ghost rider on the road!");
             throw ex;
@@ -74,6 +89,8 @@ public class Cliente {
     }
 
     public static void sendWarning(StreamObserver<WarnMsg> warningObserver, String id, String warning){
+        System.out.println("Sending warning " + id + " " + warning);
+
         WarnMsg finalWarnMsg = WarnMsg.newBuilder()
                 .setId(id)
                 .setWarning(warning).build();

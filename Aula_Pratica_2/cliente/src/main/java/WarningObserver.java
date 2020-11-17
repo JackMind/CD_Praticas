@@ -3,7 +3,7 @@ import rpcstubs.WarnMsg;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class WarningObserver implements StreamObserver  <WarnMsg> {
+public class WarningObserver implements StreamObserver <WarnMsg> {
 
     public AtomicBoolean isCompleted = new AtomicBoolean(false);
 

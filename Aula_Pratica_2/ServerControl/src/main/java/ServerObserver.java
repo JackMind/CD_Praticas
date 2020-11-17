@@ -1,28 +1,24 @@
 import io.grpc.stub.StreamObserver;
-import rpcstubs.Initial;
 import rpcstubs.WarnMsg;
 
-import java.util.Map;
+import java.util.UUID;
 
 public class ServerObserver implements StreamObserver<WarnMsg> {
 
-    private final StreamObserver<WarnMsg> server;
-    private final Map<String, Initial> veiculosEstrada;
+    private final StreamObserver<WarnMsg> clientObserver;
+    public final UUID observerId;
 
-    public ServerObserver(StreamObserver<WarnMsg> server, Map<String, Initial> veiculosEstrada) {
-        this.server = server;
-        this.veiculosEstrada = veiculosEstrada;
+    public ServerObserver(final StreamObserver<WarnMsg> clientObserver) {
+        this.clientObserver = clientObserver;
+        this.observerId = UUID.randomUUID();
     }
 
     @Override
     public void onNext(WarnMsg warnMsg) {
 
-        System.out.println("New warning received! " + warnMsg);
-        for (Map.Entry<String, Initial> entry : this.veiculosEstrada.entrySet())
-        {
-            this.server.onNext(WarnMsg.newBuilder().setWarning(warnMsg.getWarning()).build());
-        }
-
+        System.out.println("New warning received! " + warnMsg + " on observerId " + this.observerId);
+        MessageBroadCast.getInstance().messages.add(warnMsg);
+        System.out.println("Messages size: "+MessageBroadCast.getInstance().messages.size());
     }
 
     @Override
@@ -32,7 +28,7 @@ public class ServerObserver implements StreamObserver<WarnMsg> {
 
     @Override
     public void onCompleted() {
-        System.out.println("Called on complete!");
-        this.server.onCompleted();
+        MessageBroadCast.getInstance().clientsObservers.remove(observerId);
+        this.clientObserver.onCompleted();
     }
 }
