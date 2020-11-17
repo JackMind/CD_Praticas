@@ -139,23 +139,6 @@ public class Server extends ControlServiceGrpc.ControlServiceImplBase
     @Override
     public StreamObserver<WarnMsg> warning(StreamObserver<WarnMsg> responseObserver)
     {
-
-
-        //RECEBER A MENSAGEM DE 1
-        //FAZER BROADCAST PARA TODOS
-
-        //WarnMsg warnMsg = WarnMsg.newBuilder().setId().setWarning().build();
-
-
-        for (Map.Entry<String, Initial> entry : VeiculosEstrada.entrySet())
-        {
-            String matricula = entry.getKey();
-            //ENVIAR MENSAGEM COM BASE NO ID
-        }
-
-        //responseObserver.onNext(warnMsg);
-        responseObserver.onCompleted();
-
         return new ServerObserver(responseObserver, VeiculosEstrada);
     }
 }

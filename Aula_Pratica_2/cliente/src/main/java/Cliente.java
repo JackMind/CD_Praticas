@@ -11,6 +11,8 @@ public class Cliente {
     static String svcIP="localhost";
     static int svcPort=6000;
 
+    static ManagedChannel channel;
+
     public static void main(String[] args) {
 
         if(args.length > 0){
@@ -19,15 +21,45 @@ public class Cliente {
         }
         System.out.println("Server ip: " + svcIP + " ,Server port:  " + svcPort);
 
-        ManagedChannel channel = ManagedChannelBuilder
+        channel = ManagedChannelBuilder
                 .forAddress(svcIP, svcPort)
                 .usePlaintext().build();
 
-        String ID = "123456";
-        int INIT_POINT = 1;
-        int OUT_POINT = 3;
+        enter("6543", 1);
+        normalBehaviour("123456", 1, 3);
 
-        Initial initial = Initial.newBuilder().setId(ID).setInPoint(INIT_POINT).build();
+    }
+
+    public static void normalBehaviour(String ID, int INIT_POINT, int OUT_POINT){
+        try{
+            enter(ID, INIT_POINT);
+
+            StreamObserver<WarnMsg> warningObserver = ControlServiceGrpc
+                    .newStub(channel)
+                    .warning(new WarningObserver());
+
+            sendWarning(warningObserver, ID, "Danger on the road "
+                    + ID + " entered on the " + INIT_POINT + " entry");
+
+            System.out.println(ID + " Doing stunts... ");
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) { e.printStackTrace(); }
+
+            sendWarning(warningObserver, ID,ID + " exiting on point " + OUT_POINT);
+
+            Payment payment = leave(ID, OUT_POINT);
+
+            sendWarning(warningObserver, ID, ID + " payed " + payment);
+
+            warningObserver.onCompleted();
+        }catch (Exception ex){
+            System.out.println(ex);
+        }
+    }
+    public static void enter(String id, int initPoint){
+        Initial initial = Initial
+                .newBuilder().setId(id).setInPoint(initPoint).build();
 
         try {
             ControlServiceGrpc
@@ -36,51 +68,21 @@ public class Cliente {
                     .enter(initial);
         }catch (StatusRuntimeException ex){
             System.out.println("Server control did not respond, there is a ghost rider on the road!");
-            return;
+            throw ex;
         }
-
         System.out.println("Client " +initial.getId() + " initiated ride on " + initial.getInPoint() + " position");
+    }
 
-
-        ControlServiceGrpc.ControlServiceStub noBlockStub = ControlServiceGrpc.newStub(channel);
-        WarningObserver warningObserver = new WarningObserver();
-
-
-        StreamObserver<WarnMsg> serverObserver = noBlockStub.warning(warningObserver);
-
-        WarnMsg warnMsg = WarnMsg.newBuilder()
-                .setId(ID)
-                .setWarning("Danger on the road "
-                        + initial.getId()
-                        + " entered on the "
-                        + initial.getInPoint()
-                        + " entry").build();
-        serverObserver.onNext(warnMsg);
-
-        while (!warningObserver.isCompleted.get()) {
-
-            System.out.println("doing something");
-
-            try
-            {
-                Thread.sleep(2000);
-            }
-            catch (InterruptedException e)
-            {
-                e.printStackTrace();
-            }
-        }
-
-        FinalPoint finalPoint = FinalPoint.newBuilder().setId(ID).setOutPoint(OUT_POINT).build();
-
+    public static void sendWarning(StreamObserver<WarnMsg> warningObserver, String id, String warning){
         WarnMsg finalWarnMsg = WarnMsg.newBuilder()
-                .setId(ID)
-                .setWarning(initial.getId()
-                        + " exiting on point "
-                        + finalPoint.getOutPoint()).build();
+                .setId(id)
+                .setWarning(warning).build();
 
-        serverObserver.onNext(finalWarnMsg);
+        warningObserver.onNext(finalWarnMsg);
+    }
 
+    public static Payment leave(String id, int outPoint){
+        FinalPoint finalPoint = FinalPoint.newBuilder().setId(id).setOutPoint(outPoint).build();
         Payment payment;
         try{
             payment = ControlServiceGrpc
@@ -89,17 +91,9 @@ public class Cliente {
                     .leave(finalPoint);
         }catch (StatusRuntimeException ex){
             System.out.println("Control or Central server did not respond, car did not have to pay :) !");
-            return;
+            return null;
         }
-
         System.out.println("Received payment! " + payment);
-
-        WarnMsg payWarnMsg = WarnMsg.newBuilder()
-                .setWarning(initial.getId()
-                        + " payed "
-                        + payment.getValue()).build();
-        serverObserver.onNext(payWarnMsg);
-
-        serverObserver.onCompleted();
+        return payment;
     }
 }

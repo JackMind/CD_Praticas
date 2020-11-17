@@ -32,6 +32,7 @@ public class ServerObserver implements StreamObserver<WarnMsg> {
 
     @Override
     public void onCompleted() {
+        System.out.println("Called on complete!");
         this.server.onCompleted();
     }
 }
