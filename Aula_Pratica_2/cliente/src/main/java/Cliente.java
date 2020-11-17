@@ -50,7 +50,10 @@ public class Cliente {
 
             enter(ID, INIT_POINT);
 
-            StreamObserver<WarnMsg> serverObserver = ControlServiceGrpc.newStub(channel).warning(new WarningObserver());
+            StreamObserver<WarnMsg> serverObserver =
+                    ControlServiceGrpc
+                            .newStub(channel)
+                            .warning(new WarningObserver());
             sendWarning(serverObserver, ID, "Danger on the road " + ID + " entered on the " + INIT_POINT + " entry");
 
 

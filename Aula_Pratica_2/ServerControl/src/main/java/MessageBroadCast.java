@@ -1,3 +1,4 @@
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import rpcstubs.Initial;
 import rpcstubs.WarnMsg;
@@ -29,7 +30,12 @@ public class MessageBroadCast implements Runnable{
                 for(Map.Entry<UUID,StreamObserver<WarnMsg>> observer : clientsObservers.entrySet())
                 {
                     System.out.println("Broadcasting to " + observer.getKey());
-                    observer.getValue().onNext(warnMsg);
+                    try{
+                        observer.getValue().onNext(warnMsg);
+                    }catch (StatusRuntimeException ex){
+                        System.out.println("Client already closed the observer!");
+                        clientsObservers.remove(observer.getKey());
+                    }
                 }
             }
 

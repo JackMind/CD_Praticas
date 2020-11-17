@@ -28,6 +28,7 @@ public class ServerObserver implements StreamObserver<WarnMsg> {
 
     @Override
     public void onCompleted() {
+        System.out.println("Observer " + observerId + " called onCompleted!");
         Server.messageBroadCast.clientsObservers.remove(observerId);
         this.clientObserver.onCompleted();
     }
