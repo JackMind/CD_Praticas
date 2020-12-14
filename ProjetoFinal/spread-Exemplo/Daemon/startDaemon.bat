@@ -1,0 +1,1 @@
+spread -c simpleSpread.conf.txt
