@@ -30,9 +30,9 @@ public class Cliente {
                 .forAddress(svcIP, svcPort)
                 .usePlaintext().build();
 
-        enterAndRegisterWarnings("6543", 1);
-        enterAndRegisterWarnings("65234243", 1);
-        enterAndRegisterWarnings("6546743", 1);
+        enterAndRegisterWarnings("CLIENT_2", 1);
+        enterAndRegisterWarnings("CLIENT_3", 1);
+        enterAndRegisterWarnings("CLIENT_4", 1);
 
         //normalBehaviour("123456", 1, 3);
         Scanner scan= new Scanner(System.in); scan.nextLine();
@@ -43,7 +43,7 @@ public class Cliente {
             enter(ID, INIT_POINT);
 
             StreamObserver<WarnMsg> warningObserver = ControlServiceGrpc.newStub(channel).warning(new WarningObserver());
-            warningObserver.onNext(WarnMsg.newBuilder().setId(ID).setWarning("rocks in the middle of the road").build());
+            //warningObserver.onNext(WarnMsg.newBuilder().setId(ID).setWarning("rocks in the middle of the road").build());
 
         }catch (Exception ex){
             System.out.println(ex);
@@ -85,7 +85,7 @@ public class Cliente {
 
         try
         {
-            ControlServiceGrpc.newBlockingStub(channel).withDeadlineAfter(5, TimeUnit.MINUTES).enter(initial);
+            ControlServiceGrpc.newBlockingStub(channel).withDeadlineAfter(1, TimeUnit.SECONDS).enter(initial);
         }
         catch (StatusRuntimeException ex)
         {
