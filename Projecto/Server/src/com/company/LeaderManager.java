@@ -1,15 +1,20 @@
 package com.company;
 
+import com.company.messages.AppendData;
+import com.company.messages.BaseMessage;
+import com.company.messages.NewLeader;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import rpcsclientstubs.Data;
 import spread.*;
 
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-public class LeaderManager implements LeaderManagerInterface{
+public class LeaderManager implements SpreadMessageListenerInterface {
 
+    private final Database database;
     private final SpreadConnection connection;
     private final String myIp;
     private final int mySpreadPort;
@@ -18,13 +23,19 @@ public class LeaderManager implements LeaderManagerInterface{
     private final String myServerName;
 
 
-    public LeaderManager(SpreadConnection connection, int mySpreadPort, int myGrpcPort, String groupId, String myServerName) throws UnknownHostException {
+    public LeaderManager(SpreadConnection connection,
+                         int mySpreadPort,
+                         int myGrpcPort,
+                         String groupId,
+                         String myServerName,
+                         final Database database) throws UnknownHostException {
         this.connection = connection;
         this.myIp = InetAddress.getLocalHost().getHostAddress();
         this.mySpreadPort = mySpreadPort;
         this.myGrpcPort = myGrpcPort;
         this.groupId = groupId;
         this.myServerName = myServerName;
+        this.database = database;
     }
 
     private String leaderIp = null;
@@ -38,9 +49,8 @@ public class LeaderManager implements LeaderManagerInterface{
             System.out.println("Leader: " + this.leaderServerName + " no longer exists");
 
             int max = 0;
-            for(SpreadGroup group1: info.getMembers()){
-                String activeServer = getServerName(group1);
-                int cardinality = Integer.parseInt(activeServer.substring(activeServer.length()-1));
+            for(SpreadGroup server: info.getMembers()){
+                int cardinality = this.getServerNameCardinality(server);
                 if(cardinality > max){
                     max = cardinality;
                 }
@@ -48,29 +58,20 @@ public class LeaderManager implements LeaderManagerInterface{
             this.leaderServerName = "Server"+max;
             System.out.println("New leader: " + this.leaderServerName + " with cardinality: " + max);
         }
-        if(isLeader()){
-            SpreadMessage message = new SpreadMessage();
 
-            try{
-                message.setObject(new NewLeader(this.myIp, this.myGrpcPort, this.leaderServerName));
-                message.addGroup(groupId);     //definir grupo de envio da mensagem
-                message.setReliable();
-                connection.multicast(message); //Enviar Mensagem Multicast
-            } catch (SpreadException spreadException){
-                System.out.println(spreadException);
-            }
-
-
+        if(amILeader()){
+            System.out.println("I'm leader, notify everyone!");
+            this.sendIAmLeaderMessage();
         }
     }
 
     private ManagedChannel channel;
     @Override
-    public void selectNewLeader(NewLeader newLeader) {
-        if(!newLeader.serverName.equals(this.myServerName)){
-            this.leaderServerName = newLeader.serverName;
-            this.leaderIp = newLeader.ip;
-            this.leaderPort = newLeader.port;
+    public void assignNewLeader(NewLeader newLeader) {
+        if(!newLeader.getServerName().equals(this.myServerName)){
+            this.leaderServerName = newLeader.getServerName();
+            this.leaderIp = newLeader.getIp();
+            this.leaderPort = newLeader.getPort();
             System.out.println("NEW LEADER! " + newLeader);
 
             this.channel = ManagedChannelBuilder
@@ -86,40 +87,26 @@ public class LeaderManager implements LeaderManagerInterface{
     }
 
     @Override
-    public void firstLeader(SpreadGroup spreadGroup) {
+    public void assignFirstLeader(SpreadGroup spreadGroup) {
         this.leaderServerName = getServerName(spreadGroup);
         System.out.println("First leader: " + this.leaderServerName);
     }
 
     @Override
-    public void whoIsLeader() {
-        SpreadMessage message = new SpreadMessage();
-
+    public void requestWhoIsLeader() {
+        System.out.println("Request who is leader!");
         try{
-            message.setObject(new BaseMessage(BaseMessage.TYPE.WHO_IS_LEADER));
-            message.addGroup(groupId);     //definir grupo de envio da mensagem
-            message.setReliable();
-            connection.multicast(message); //Enviar Mensagem Multicast
-        } catch (SpreadException spreadException){
-            System.out.println(spreadException);
+            connection.multicast(createMessage(new BaseMessage(BaseMessage.TYPE.WHO_IS_LEADER)));
+        } catch (SpreadException exception){
+            System.out.println("Error multicasting message: requestWhoIsLeader " + exception);
         }
-
     }
 
     @Override
-    public void notifyParticipants() {
-        if(isLeader()){
-            System.out.println("Notify that i'm leader: " + this.myServerName);
-            SpreadMessage message = new SpreadMessage();
-
-            try{
-                message.setObject(new NewLeader(this.myIp, this.myGrpcPort, this.leaderServerName));
-                message.addGroup(groupId);     //definir grupo de envio da mensagem
-                message.setReliable();
-                connection.multicast(message); //Enviar Mensagem Multicast
-            } catch (SpreadException spreadException){
-                System.out.println(spreadException);
-            }
+    public void whoIsLeaderRequestedNotifyParticipantsWhoIsLeader() {
+        if(this.amILeader()){
+            System.out.println("Who is leader received, notify that i am leader! " + this.myServerName);
+            this.sendIAmLeaderMessage();
         }
     }
 
@@ -128,48 +115,37 @@ public class LeaderManager implements LeaderManagerInterface{
         return !this.leaderServerName.isEmpty();
     }
 
-    public boolean isLeader(){
+    @Override
+    public void appendDataReceived(AppendData appendData) {
+        if(!this.amILeader()){
+            System.out.println("Data update received from leader!");
+            this.database.database.put(appendData.getKey(), appendData.getData());
+        }
+    }
+
+    public boolean amILeader(){
         //System.out.println(this.leaderServerName + " == " + this.myServerName);
         return this.leaderServerName.equals(this.myServerName);
     }
 
-    public static class NewLeader extends BaseMessage implements Serializable {
-        private final String ip;
-        private final int port;
-        private final String serverName;
-
-        public NewLeader(String ip, int port, String serverName) {
-            super(TYPE.NEW_LEADER);
-            this.serverName = serverName;
-            this.ip = ip;
-            this.port = port;
-        }
-
-        public String getIp() {
-            return ip;
-        }
-
-        public int getPort() {
-            return port;
-        }
-
-        public String getServerName() {
-            return serverName;
-        }
-
-        @Override
-        public String toString() {
-            return "NewLeader{" +
-                    "ip='" + ip + '\'' +
-                    ", port=" + port +
-                    ", serverName='" + serverName + '\'' +
-                    '}';
+    public void sendAppendDataToParticipants(Data data){
+        if(this.amILeader()){
+            System.out.println("Send append data to all participants! " + data);
+            try{
+                connection.multicast(createMessage(new AppendData(data)));
+            } catch (SpreadException spreadException){
+                System.out.println(spreadException);
+            }
         }
     }
 
-
     private String getServerName(SpreadGroup group){
         return group.toString().split("#")[1];
+    }
+
+    private int getServerNameCardinality(SpreadGroup group){
+        String server = this.getServerName(group);
+        return Integer.parseInt(server.substring(server.length()-1));
     }
 
     private String getHostName(SpreadGroup group){
@@ -186,5 +162,26 @@ public class LeaderManager implements LeaderManagerInterface{
 
     public String getLeaderServerName() {
         return leaderServerName;
+    }
+
+    private SpreadMessage createMessage(BaseMessage message){
+        SpreadMessage spreadMessage = new SpreadMessage();
+        try{
+            spreadMessage.setObject(message);
+            spreadMessage.addGroup(groupId);     //definir grupo de envio da mensagem
+            spreadMessage.setReliable();
+        }catch (SpreadException exception){
+            System.out.println("Error creating message: " + exception);
+        }
+        return spreadMessage;
+    }
+
+    private void sendIAmLeaderMessage() {
+        //System.out.println("Notify that i'm leader: " + this.myServerName);
+        try{
+            connection.multicast(createMessage(new NewLeader(this.myIp, this.myGrpcPort, this.leaderServerName))); //Enviar Mensagem Multicast
+        }catch (SpreadException exception){
+            System.out.println("Error multicasting message: sendIAmLeaderMessage " + exception);
+        }
     }
 }

@@ -43,7 +43,7 @@ public class SpreadServer implements Runnable, ClientInterface{
             LeaderManager leaderManager = new LeaderManager(connection, port, grpcPort, groupId, name);
 
             //Listener das mensagens multicast
-            MessageListener msgHandling = new MessageListener(leaderManager);
+            SpreadMessageListener msgHandling = new SpreadMessageListener(leaderManager);
             connection.add(msgHandling);
 
             //Criar Grupo e Juntar

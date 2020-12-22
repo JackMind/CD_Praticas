@@ -8,7 +8,10 @@ public class Database {
 
     public final Map<String, Data> database = new HashMap<>();
 
-
+    public void printDatabase(){
+        StringBuilder stringBuilder = new StringBuilder();
+        database.forEach((key, value) -> stringBuilder.append());
+    }
     public static class Data implements Serializable {
         private String data;
 

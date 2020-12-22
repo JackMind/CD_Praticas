@@ -1,6 +1,5 @@
 package com.company;
 
-import io.grpc.ManagedChannelBuilder;
 import rpcsclientstubs.ClientServiceGrpc;
 import rpcsclientstubs.Data;
 import rpcsclientstubs.Key;
@@ -18,7 +17,7 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
 
     @Override
     public void read(Key request, io.grpc.stub.StreamObserver<Data> responseObserver) {
-        if(this.leaderManager.isLeader()){
+        if(this.leaderManager.amILeader()){
             Database.Data data = this.database.database.get(request.getKey());
             Data dataToCommit = Data.newBuilder()
                                 .setData(data.getData())
@@ -40,11 +39,14 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
 
     @Override
     public void write(Data request, io.grpc.stub.StreamObserver<Void> responseObserver) {
-        if(this.leaderManager.isLeader()){
+        if(this.leaderManager.amILeader()){
             this.database.database.put(request.getKey(), new Database.Data(request.getData()) );
             System.out.println("saved on db" + request);
+
             responseObserver.onNext(Void.newBuilder().build());
             responseObserver.onCompleted();
+
+            this.leaderManager.sendAppendDataToParticipants(request);
             //CONSENSUS
         }else{
             System.out.println("Write data to leader: " + this.leaderManager.getLeaderServerName());

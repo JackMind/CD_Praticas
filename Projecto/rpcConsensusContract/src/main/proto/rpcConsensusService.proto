@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "rpcsconsensusstubs";
+
+package consensusservice;
+
+service ConsensusService {
+    rpc Update(Void) returns (stream Data);
+    rpc RequestVote(Data) returns (Vote);
+}
+
+message Vote {
+    string id = 1;
+    bool vote = 2;
+}
+
+message Data {
+    string id = 1;
+    string key = 2;
+    string data = 3;
+}
+
+message Void { }
+
+

@@ -32,5 +32,6 @@
     <orderEntry type="library" name="Maven: com.google.errorprone:error_prone_annotations:2.3.4" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: org.codehaus.mojo:animal-sniffer-annotations:1.18" level="project" />
     <orderEntry type="library" name="Maven: io.grpc:grpc-stub:1.33.1" level="project" />
+    <orderEntry type="library" name="rpcConsensusContract-1.0-SNAPSHOT" level="project" />
   </component>
 </module>

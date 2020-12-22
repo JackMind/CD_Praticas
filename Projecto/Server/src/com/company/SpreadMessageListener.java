@@ -1,12 +1,16 @@
 package com.company;
 
+import com.company.messages.AppendData;
+import com.company.messages.BaseMessage;
+import com.company.messages.NewLeader;
 import spread.*;
 
-public class MessageListener implements BasicMessageListener {
-    private final LeaderManagerInterface leaderManagerInterface;
-    public MessageListener(LeaderManagerInterface leaderManagerInterface) {
-        this.leaderManagerInterface = leaderManagerInterface;
+public class SpreadMessageListener implements BasicMessageListener {
+    private final SpreadMessageListenerInterface spreadMessageListenerInterface;
+    public SpreadMessageListener(SpreadMessageListenerInterface spreadMessageListenerInterface) {
+        this.spreadMessageListenerInterface = spreadMessageListenerInterface;
     }
+
     @Override
     public void messageReceived(SpreadMessage spreadMessage) {
         try {
@@ -15,13 +19,16 @@ public class MessageListener implements BasicMessageListener {
             {
                 BaseMessage message = (BaseMessage)spreadMessage.getObject();
                 if(message.getType().equals(BaseMessage.TYPE.NEW_LEADER)){
-                    LeaderManager.NewLeader newLeader = (LeaderManager.NewLeader) message;
+                    NewLeader newLeader = (NewLeader) message;
                     //System.out.println(spreadMessage.getSender() + ": " + newLeader);
-                    leaderManagerInterface.selectNewLeader(newLeader);
+                    spreadMessageListenerInterface.assignNewLeader(newLeader);
 
                 }else if(message.getType().equals(BaseMessage.TYPE.WHO_IS_LEADER)){
                     //System.out.println("WHO IS LEADER MESSAGE: " + message);
-                    leaderManagerInterface.notifyParticipants();
+                    spreadMessageListenerInterface.whoIsLeaderRequestedNotifyParticipantsWhoIsLeader();
+                }else if(message.getType().equals(BaseMessage.TYPE.APPEND_DATA)){
+                    AppendData appendData = (AppendData) message;
+                    spreadMessageListenerInterface.appendDataReceived(appendData);
                 }
             }
             else if(spreadMessage.isMembership()){
@@ -35,23 +42,23 @@ public class MessageListener implements BasicMessageListener {
                         System.out.println(info.getJoined() + " JOINED GROUP"); 
                         if(info.getMembers().length == 1){
                             System.out.println("I'm first, I'm leader!");
-                            leaderManagerInterface.firstLeader(info.getJoined());
+                            spreadMessageListenerInterface.assignFirstLeader(info.getJoined());
                         }
-                        else if(!leaderManagerInterface.doIHaveLeader()){
+                        else if(!spreadMessageListenerInterface.doIHaveLeader()){
                             System.out.println("Just joined party, who is leader?");
-                            leaderManagerInterface.whoIsLeader();
+                            spreadMessageListenerInterface.requestWhoIsLeader();
                         }
 
                     }
                     else if(info.isCausedByLeave())
                     {
                         System.out.println(info.getLeft() + " LEFT GROUP");
-                        leaderManagerInterface.notifyServerLeave(info.getLeft(), info);
+                        spreadMessageListenerInterface.notifyServerLeave(info.getLeft(), info);
                     }
                     else if(info.isCausedByDisconnect())
                     {
                         System.out.println(info.getDisconnected() + " DISCONECTED");
-                        leaderManagerInterface.notifyServerLeave(info.getDisconnected(), info);
+                        spreadMessageListenerInterface.notifyServerLeave(info.getDisconnected(), info);
                     }
                 }
             }

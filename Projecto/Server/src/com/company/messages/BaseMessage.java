@@ -1,4 +1,4 @@
-package com.company;
+package com.company.messages;
 
 import java.io.Serializable;
 
@@ -15,7 +15,8 @@ public class BaseMessage implements Serializable {
 
     public enum TYPE{
         NEW_LEADER,
-        WHO_IS_LEADER
+        WHO_IS_LEADER,
+        APPEND_DATA;
     }
 
     @Override
