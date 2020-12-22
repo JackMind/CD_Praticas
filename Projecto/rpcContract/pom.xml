@@ -5,9 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>exgrpc</groupId>
-    <artifactId>rpcContract</artifactId>
-    <version>1.0</version>
-
+    <artifactId>rpcClientContract</artifactId>
+    <version>1.0-SNAPSHOT</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>11</java.version>
@@ -59,7 +58,6 @@
                 <artifactId>protobuf-maven-plugin</artifactId>
                 <version>0.6.1</version>
                 <configuration>
-                    <protoSourceRoot>/src/main/proto</protoSourceRoot>  <!-- @@@@@@ TIVE DE ADICIONAR ISTO @@@@@@@ -->
                     <protocArtifact>com.google.protobuf:protoc:3.11.0:exe:${os.detected.classifier}</protocArtifact>
                     <pluginId>grpc-java</pluginId>
                     <pluginArtifact>io.grpc:protoc-gen-grpc-java:1.28.1:exe:${os.detected.classifier}</pluginArtifact>
@@ -98,7 +96,3 @@
     </build>
 
 </project>
-
-
-
-
