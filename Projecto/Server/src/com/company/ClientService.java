@@ -1,5 +1,7 @@
 package com.company;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import rpcsclientstubs.ClientServiceGrpc;
 import rpcsclientstubs.Data;
 import rpcsclientstubs.Key;
@@ -18,22 +20,35 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
     @Override
     public void read(Key request, io.grpc.stub.StreamObserver<Data> responseObserver) {
         if(this.leaderManager.amILeader()){
-            Database.Data data = this.database.database.get(request.getKey());
+            String key = request.getKey();
+            Database.Data data = this.database.database.get(key);
             Data dataToCommit = Data.newBuilder()
                                 .setData(data.getData())
                                 .setKey(request.getKey())
                                 .build();
-            responseObserver.onNext(dataToCommit);
-            responseObserver.onCompleted();
 
-            //TODO: CONSENSUS
+            boolean consensus = this.leaderManager.requestVote(key, data);
+
+            if(consensus){
+                System.out.println("Sending data to commit...");
+                responseObserver.onNext(dataToCommit);
+                responseObserver.onCompleted();
+            }else{
+                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+            }
         }else{
             System.out.println("Asking data to leader: " + this.leaderManager.getLeaderServerName());
-            Data data = ClientServiceGrpc
-                    .newBlockingStub(this.leaderManager.getChannel())
-                    .read(request);
-            responseObserver.onNext(data);
-            responseObserver.onCompleted();
+            try {
+                Data data = ClientServiceGrpc
+                        .newBlockingStub(this.leaderManager.getChannel())
+                        .read(request);
+                System.out.println("Data received from leader: " + data);
+                responseObserver.onNext(data);
+                responseObserver.onCompleted();
+            }catch (Exception exception){
+                System.out.println("received exception: " + exception);
+                responseObserver.onError(exception);
+            }
         }
     }
 

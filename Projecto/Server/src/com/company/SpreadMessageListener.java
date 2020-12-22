@@ -2,6 +2,7 @@ package com.company;
 
 import com.company.messages.AppendData;
 import com.company.messages.BaseMessage;
+import com.company.messages.ConsensusVoting;
 import com.company.messages.NewLeader;
 import spread.*;
 
@@ -29,11 +30,16 @@ public class SpreadMessageListener implements BasicMessageListener {
                 }else if(message.getType().equals(BaseMessage.TYPE.APPEND_DATA)){
                     AppendData appendData = (AppendData) message;
                     spreadMessageListenerInterface.appendDataReceived(appendData);
+                }else if (message.getType().equals(BaseMessage.TYPE.CONSENSUS_VOTING)){
+                    ConsensusVoting voting = (ConsensusVoting) message;
+                    spreadMessageListenerInterface.handleVoteRequest(voting);
                 }
             }
             else if(spreadMessage.isMembership()){
                 MembershipInfo info = spreadMessage.getMembershipInfo();
-                SpreadGroup group = info.getGroup();
+                spreadMessageListenerInterface.updateMembersSize(info.getMembers().length);
+
+                //SpreadGroup group = info.getGroup();
 
                 if(info.isRegularMembership())
                 {

@@ -16,7 +16,8 @@ public class BaseMessage implements Serializable {
     public enum TYPE{
         NEW_LEADER,
         WHO_IS_LEADER,
-        APPEND_DATA;
+        APPEND_DATA,
+        CONSENSUS_VOTING;
     }
 
     @Override

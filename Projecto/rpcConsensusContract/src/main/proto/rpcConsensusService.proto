@@ -7,12 +7,13 @@ package consensusservice;
 
 service ConsensusService {
     rpc Update(Void) returns (stream Data);
-    rpc RequestVote(Data) returns (Vote);
+    rpc Vote(TransactionVote) returns (Void);
 }
 
-message Vote {
-    string id = 1;
+message TransactionVote {
+    string transactionId = 1;
     bool vote = 2;
+    string serverName = 3;
 }
 
 message Data {

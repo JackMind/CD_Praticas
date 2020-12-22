@@ -31,9 +31,14 @@ public class Cliente
 
         Thread.sleep(1000);
 
-        Data data = ClientServiceGrpc
-                .newBlockingStub(channel)
-                .read(Key.newBuilder().setKey("key").build());
+        Data data = null;
+        try{
+            data = ClientServiceGrpc
+                    .newBlockingStub(channel)
+                    .read(Key.newBuilder().setKey("key").build());
+        }catch (Exception exception){
+            System.out.println("Exception: " + exception);
+        }
 
         System.out.println(data);
 

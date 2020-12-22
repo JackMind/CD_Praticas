@@ -40,7 +40,7 @@ public class SpreadServer implements Runnable, ClientInterface{
             connection = new SpreadConnection();
             connection.connect(InetAddress.getByName(hostname), port, name, false, true);
 
-            LeaderManager leaderManager = new LeaderManager(connection, port, grpcPort, groupId, name);
+            LeaderManager leaderManager = new LeaderManager(connection, port, grpcPort, groupId, name, database);
 
             //Listener das mensagens multicast
             SpreadMessageListener msgHandling = new SpreadMessageListener(leaderManager);
@@ -54,7 +54,9 @@ public class SpreadServer implements Runnable, ClientInterface{
             //GRPC Clientes
             io.grpc.Server svc = ServerBuilder
                     .forPort(this.grpcPort)
-                    .addService(new ClientService(leaderManager, this.database) ).build();
+                    .addService(new ClientService(leaderManager, this.database) )
+                    .addService(leaderManager)
+                    .build();
 
             svc.start();
 

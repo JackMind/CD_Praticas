@@ -2,17 +2,23 @@ package com.company;
 
 import com.company.messages.AppendData;
 import com.company.messages.BaseMessage;
+import com.company.messages.ConsensusVoting;
 import com.company.messages.NewLeader;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
 import rpcsclientstubs.Data;
+import rpcsconsensusstubs.ConsensusServiceGrpc;
+import rpcsconsensusstubs.TransactionVote;
+import rpcsconsensusstubs.Void;
 import spread.*;
 
-import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public class LeaderManager implements SpreadMessageListenerInterface {
+public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase implements SpreadMessageListenerInterface  {
 
     private final Database database;
     private final SpreadConnection connection;
@@ -21,7 +27,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     private final int myGrpcPort;
     private final String groupId;
     private final String myServerName;
-
+    private final ConsensusModule consensusModule;
 
     public LeaderManager(SpreadConnection connection,
                          int mySpreadPort,
@@ -36,11 +42,13 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         this.groupId = groupId;
         this.myServerName = myServerName;
         this.database = database;
+        this.consensusModule = new ConsensusModule();
     }
 
     private String leaderIp = null;
     private int leaderPort = -1;
     private String leaderServerName = "";
+    private volatile int spreadMembersSize;
 
     @Override
     public void notifyServerLeave(SpreadGroup group, MembershipInfo info) {
@@ -120,7 +128,43 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         if(!this.amILeader()){
             System.out.println("Data update received from leader!");
             this.database.database.put(appendData.getKey(), appendData.getData());
+            this.database.printDatabase();
         }
+    }
+
+    @Override
+    public void updateMembersSize(int length) {
+        this.spreadMembersSize = length;
+    }
+
+    @Override
+    public void handleVoteRequest(ConsensusVoting voting) {
+        if(this.amILeader()){
+            return;
+        }
+        System.out.println("Request for voting received: " + voting);
+        UUID transactionId = voting.getTransactionId();
+        Database.Data data = voting.getData();
+
+        boolean vote = true;
+
+        Database.Data localData = this.database.database.get(voting.getKey());
+        if(localData==null){
+            vote = false;
+        }
+        if(localData.getData().hashCode()!=data.getData().hashCode()){
+            vote = false;
+        }
+
+        ConsensusServiceGrpc
+                .newBlockingStub(this.channel)
+                .vote(TransactionVote.newBuilder()
+                        .setTransactionId(transactionId.toString())
+                        .setVote(vote)
+                        .setServerName(this.myServerName)
+                        .build());
+
+        System.out.println(this.myServerName + " voted: " + vote + " to transaction: " +transactionId);
     }
 
     public boolean amILeader(){
@@ -183,5 +227,43 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         }catch (SpreadException exception){
             System.out.println("Error multicasting message: sendIAmLeaderMessage " + exception);
         }
+    }
+
+    public boolean requestVote(String key, Database.Data dataToCommit) {
+        if(this.amILeader()){
+            System.out.println("Submitting vote for data: " + dataToCommit);
+
+            AtomicBoolean completed = new AtomicBoolean(false);
+
+            ConsensusModule.VoteCompletedCallBack callBack = completed::set;
+
+            UUID transactionId = this.consensusModule.submitVote(this.spreadMembersSize, callBack);
+            System.out.println("Request voting for transaction: " + transactionId);
+            try{
+                connection.multicast(createMessage(new ConsensusVoting(transactionId, key, dataToCommit)));
+            } catch (SpreadException spreadException){
+                System.out.println(spreadException);
+            }
+
+            while (!completed.get()){ }
+
+            boolean consensus = this.consensusModule.getResultAndRemove(transactionId);
+            System.out.println("Consensus completed with value: " + consensus);
+            return consensus;
+        }
+        return false;
+    }
+
+    @Override
+    public void vote(TransactionVote request, StreamObserver<Void> responseObserver) {
+        if(this.amILeader()){
+            System.out.println("Vote received from: " + request.getServerName()
+                    + " to transaction: " + request.getTransactionId()
+                    + " with vote: " + request.getVote());
+
+            this.consensusModule.appendVote(UUID.fromString(request.getTransactionId()), request.getVote());
+        }
+        responseObserver.onNext(Void.newBuilder().build());
+        responseObserver.onCompleted();
     }
 }
