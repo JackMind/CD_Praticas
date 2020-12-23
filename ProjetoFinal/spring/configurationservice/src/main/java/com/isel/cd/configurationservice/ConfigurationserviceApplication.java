@@ -2,6 +2,7 @@ package com.isel.cd.configurationservice;
 
 import io.grpc.ServerBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
@@ -14,10 +15,24 @@ import spread.SpreadConnection;
 import spread.SpreadGroup;
 
 import java.net.InetAddress;
+import java.util.Map;
 import java.util.Scanner;
 
 @SpringBootApplication
 public class ConfigurationserviceApplication implements CommandLineRunner {
+
+    @Value("#{${knownservers}}")
+    private Map<String, Integer> knownServers;
+    @Value("${grpcServerPort}")
+    private Integer grpcServerPort;
+    @Value("${SpreadServerPort}")
+    private Integer SpreadServerPort;
+    @Value("${SpreadGroupName}")
+    private String SpreadGroupName;
+    @Value("${hostname}")
+    private String hostname;
+    @Value("${local}")
+    private Boolean local;
 
     public static void main(String[] args) {
         SpringApplication.run(ConfigurationserviceApplication.class, args);
@@ -25,17 +40,13 @@ public class ConfigurationserviceApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        final int grpcServerPort = 6000;
-        final int SpreadServerPort = 4803;
-        final String SpreadGroupName = "GRUPO123";
-
         System.out.println();
         System.out.println();
 
         try
         {
 
-            ClientManager clientManager = new ClientManager();
+            ClientManager clientManager = new ClientManager(knownServers);
 
             //GRPC C
             io.grpc.Server svc = ServerBuilder.forPort(grpcServerPort).addService(new ConfigurationService(clientManager)).build();
@@ -48,8 +59,8 @@ public class ConfigurationserviceApplication implements CommandLineRunner {
 
             //SPREAD Servidores
             SpreadConnection connection = new SpreadConnection();
-            //connection.connect(InetAddress.getByName(host), port, "privatename", false, false);
-            connection.connect(InetAddress.getLocalHost(), SpreadServerPort, "Service", false, true);
+            connection.connect(local ? InetAddress.getLocalHost() : InetAddress.getByName(hostname),
+                    SpreadServerPort, "Service", false, true);
 
             connection.add(new MessageListener(clientManager));
 

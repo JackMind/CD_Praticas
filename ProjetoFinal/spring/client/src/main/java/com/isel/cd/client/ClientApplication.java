@@ -3,6 +3,7 @@ package com.isel.cd.client;
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -21,6 +22,11 @@ import java.util.Scanner;
 @SpringBootApplication
 public class ClientApplication implements CommandLineRunner {
 
+    @Value("${serviceIP}")
+    String serviceIP;
+    @Value("${configurationServiceGrpcPort}")
+    int configurationServiceGrpcPort;
+
     public static void main(String[] args) {
         SpringApplication.run(ClientApplication.class, args);
     }
@@ -29,9 +35,6 @@ public class ClientApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-
-        String serviceIP = "localhost";
-        int configurationServiceGrpcPort = 6000;
 
         ManagedChannel configurationServiceChannel;
         ManagedChannel serverChannel = null;
@@ -61,7 +64,7 @@ public class ClientApplication implements CommandLineRunner {
         while (true) {
             System.out.println("Start operations!");
 
-            System.out.println("Wait for user input!. [w <key> <value> , r <key>]");
+            System.out.println("Wait for user input!. [w <key> <value> , r <key>, exit]");
             Scanner myObj = new Scanner(System.in);
             String input = myObj.nextLine();
 
@@ -82,9 +85,14 @@ public class ClientApplication implements CommandLineRunner {
                             System.out.println("Write data: " + value + " with key: " + key);
                             write(key, value, serverChannel);
                             break;
+                        case "exit":
+                            System.out.println("Shutting down connections...");
+                            configurationServiceChannel.shutdown();
+                            serverChannel.shutdown();
+                            break;
                         default:
                             System.out.println("Option: " + option);
-                            System.out.println("Invalid option. [w <key> <value> , r <key>]");
+                            System.out.println("Invalid option. [w <key> <value> , r <key>, exit]");
                     }
                 }catch (Exception exception) {
                         System.out.println("Exception occurred, try new server! " + exception);

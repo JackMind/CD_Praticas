@@ -8,16 +8,16 @@ import spread.SpreadGroup;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+
 public class ClientManager implements Runnable{
 
+    private final Map<String, Integer> serverPorts;
     private final Map<UUID, StreamObserver<ListServers>> clientsObservers = new ConcurrentHashMap<>();
     private final Deque<ListServers> updateClientsMessages = new ArrayDeque<>();
     private final HashMap<String, Server> spreadServers = new HashMap<>();
 
-    private static final Map<String, Integer> serverPorts = new HashMap<>();
-    static{
-        serverPorts.put("Server1", 9000);
-        serverPorts.put("Server2", 9001);
+    public ClientManager(Map<String, Integer> knownServers) {
+        this.serverPorts = knownServers;
     }
 
     public void addSpreadServer(SpreadGroup server){
