@@ -3,17 +3,20 @@ package com.isel.cd.server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import org.springframework.beans.factory.annotation.Autowired;
 import rpcsclientstubs.ClientServiceGrpc;
 import rpcsclientstubs.Data;
 import rpcsclientstubs.Key;
 import rpcsclientstubs.Void;
 
+import java.util.Optional;
+
 public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
 
     private final LeaderManager leaderManager;
-    private final Database database;
+    private final DatabaseRepository database;
 
-    public ClientService(LeaderManager leaderManager, Database database) {
+    public ClientService(LeaderManager leaderManager, @Autowired DatabaseRepository database) {
         this.leaderManager = leaderManager;
         this.database = database;
     }
@@ -23,19 +26,23 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
         System.out.println("Requested data with key: " + request.getKey());
         if(this.leaderManager.amILeader()){
             String key = request.getKey();
-            Database.Data data = this.database.database.get(key);
+            Optional<DataEntity> data = this.database.findById(request.getKey());
 
-            //TODO: if data nulll do somethin
-            Data dataToCommit = Data.newBuilder()
-                                .setData(data.getData())
-                                .setKey(request.getKey())
-                                .build();
+            if(data.isEmpty()){
+                System.out.println("DO SOMEHTING");
+                //TODO: if data nulll do somethin
+                return;
+            }
 
-            boolean consensus = this.leaderManager.requestVote(key, data);
+
+            boolean consensus = this.leaderManager.requestVote(key, data.get());
 
             if(consensus){
                 System.out.println("Sending data...");
-                responseObserver.onNext(dataToCommit);
+                responseObserver.onNext(Data.newBuilder()
+                        .setData(data.get().getData().getData())
+                        .setKey(data.get().getKey())
+                        .build());
                 responseObserver.onCompleted();
             }else{
                 responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
@@ -46,6 +53,7 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
                 Data data = ClientServiceGrpc
                         .newBlockingStub(this.leaderManager.getChannel())
                         .read(request);
+
                 System.out.println("Data received from leader: " + data);
                 responseObserver.onNext(data);
                 responseObserver.onCompleted();
@@ -59,7 +67,8 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
     @Override
     public void write(Data request, StreamObserver<Void> responseObserver) {
         if(this.leaderManager.amILeader()){
-            this.database.database.put(request.getKey(), new Database.Data(request.getData()) );
+            this.database.save(DataEntity.builder().key(request.getKey()).data(new DataEntity.Data(request.getData())).build());
+            //this.database.database.put(request.getKey(), new Database.Data(request.getData()) );
             System.out.println("saved on db" + request);
 
             responseObserver.onNext(Void.newBuilder().build());

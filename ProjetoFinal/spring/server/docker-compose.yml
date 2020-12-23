@@ -1,0 +1,12 @@
+version: '3.7'
+
+services:
+  database:
+    container_name: server-database
+    image: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /data/postgres
+    ports:
+      - "5432:5432"

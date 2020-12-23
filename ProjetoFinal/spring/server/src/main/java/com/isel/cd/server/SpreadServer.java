@@ -1,6 +1,7 @@
 package com.isel.cd.server;
 
 import io.grpc.ServerBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
 import spread.SpreadConnection;
 import spread.SpreadException;
 import spread.SpreadGroup;
@@ -17,20 +18,20 @@ public class SpreadServer implements Runnable{
     private final String groupId;
     private final String hostname;
     private final String name;
-    private final Database database;
     private final boolean local;
     private final boolean readConsensus;
+    private final DatabaseRepository database;
     private SpreadConnection connection;
 
-    public SpreadServer(int port, int grpcPort, String groupId, String hostname, String name, boolean local, boolean readConsensus) {
+    public SpreadServer(int port, int grpcPort, String groupId, String hostname, String name, boolean local, boolean readConsensus, final DatabaseRepository database) {
         this.port = port;
         this.grpcPort = grpcPort;
         this.groupId = groupId;
         this.hostname = hostname;
         this.name = name;
-        this.database = new Database();
         this.local = local;
         this.readConsensus = readConsensus;
+        this.database = database;
     }
 
     @Override

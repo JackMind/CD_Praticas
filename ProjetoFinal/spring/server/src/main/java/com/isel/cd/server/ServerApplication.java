@@ -1,5 +1,6 @@
 package com.isel.cd.server;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -24,6 +25,8 @@ public class ServerApplication implements CommandLineRunner {
     private Boolean local;
     @Value("${voting}")
     private Boolean voting;
+    @Autowired
+    private DatabaseRepository database;
 
     public static void main(String[] args) {
         SpringApplication.run(ServerApplication.class, args);
@@ -42,7 +45,7 @@ public class ServerApplication implements CommandLineRunner {
         System.out.println("voting: " + voting);
 
 
-        SpreadServer server = new SpreadServer(spreadPort, grpcPort, groupID, hostname, serverName, local, voting);
+        SpreadServer server = new SpreadServer(spreadPort, grpcPort, groupID, hostname, serverName, local, voting, database);
         server.run();
 
 

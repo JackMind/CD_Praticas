@@ -16,12 +16,13 @@ import spread.*;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase implements SpreadMessageListenerInterface {
 
-    private final Database database;
+    private final DatabaseRepository database;
     private final SpreadConnection connection;
     private final String myIp;
     private final int myGrpcPort;
@@ -34,7 +35,7 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
                          int myGrpcPort,
                          String groupId,
                          String myServerName,
-                         final Database database,
+                         final DatabaseRepository database,
                          final boolean readConsensus) throws UnknownHostException {
         this.connection = connection;
         this.myIp = InetAddress.getLocalHost().getHostAddress();
@@ -105,7 +106,8 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
             @Override
             public void onNext(rpcsconsensusstubs.Data value) {
                 System.out.println("Data updated: " + value);
-                database.database.put(value.getKey(), new Database.Data(value.getData()));
+                database.save(DataEntity.builder().key(value.getKey()).data(new DataEntity.Data(value.getData())).build());
+                //database.database.put(value.getKey(), new Database.Data(value.getData()));
             }
 
             @Override
@@ -168,8 +170,8 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
     public void appendDataReceived(AppendData appendData) {
         if(!this.amILeader()){
             System.out.println("Data update received from leader!");
-            this.database.database.put(appendData.getKey(), appendData.getData());
-            this.database.printDatabase();
+            database.save(DataEntity.builder().key(appendData.getKey()).data(new DataEntity.Data(appendData.getData().getData())).build());
+            database.findAll().forEach(System.out::println);
         }
     }
 
@@ -185,15 +187,15 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
         }
         System.out.println("Request for voting received: " + voting);
         UUID transactionId = voting.getTransactionId();
-        Database.Data data = voting.getData();
+        DataEntity.Data data = voting.getData();
 
         boolean vote = true;
 
-        Database.Data localData = this.database.database.get(voting.getKey());
-        if(localData==null){
+        Optional<DataEntity> localData = this.database.findById(voting.getKey());
+        if(localData.isEmpty()){
             vote = false;
         }
-        if(localData.getData().hashCode()!=data.getData().hashCode()){
+        if(localData.get().hashCode()!=data.getData().hashCode()){
             vote = false;
         }
 
@@ -270,7 +272,7 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
         }
     }
 
-    public boolean requestVote(String key, Database.Data dataToCommit) {
+    public boolean requestVote(String key, DataEntity dataToCommit) {
         if(this.spreadMembersSize==2 || !this.readConsensus){
             return true;
         }
@@ -284,7 +286,7 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
             UUID transactionId = this.consensusModule.submitVote(this.spreadMembersSize, callBack);
             System.out.println("Request voting for transaction: " + transactionId);
             try{
-                connection.multicast(createMessage(new ConsensusVoting(transactionId, key, dataToCommit)));
+                connection.multicast(createMessage(new ConsensusVoting(transactionId, key, dataToCommit.getData())));
             } catch (SpreadException spreadException){
                 System.out.println(spreadException);
             }
@@ -315,8 +317,12 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
     public void update(Void request, StreamObserver<rpcsconsensusstubs.Data> responseObserver) {
         if(this.amILeader()){
             System.out.println("Participant requested data update!");
-            this.database.database.forEach((key, data) ->
-                    responseObserver.onNext(rpcsconsensusstubs.Data.newBuilder().setKey(key).setData(data.getData()).build()));
+            this.database.findAll().forEach(dataEntity ->
+                    responseObserver.onNext(
+                            rpcsconsensusstubs.Data.newBuilder()
+                                    .setKey(dataEntity.getKey())
+                                    .setData(dataEntity.getData().getData())
+                                    .build()));
             responseObserver.onCompleted();
             System.out.println("Data update finished!");
         }
