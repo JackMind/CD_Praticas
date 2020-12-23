@@ -28,12 +28,14 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
     private final String groupId;
     private final String myServerName;
     private final ConsensusModule consensusModule;
+    private final boolean readConsensus;
 
     public LeaderManager(SpreadConnection connection,
                          int myGrpcPort,
                          String groupId,
                          String myServerName,
-                         final Database database) throws UnknownHostException {
+                         final Database database,
+                         final boolean readConsensus) throws UnknownHostException {
         this.connection = connection;
         this.myIp = InetAddress.getLocalHost().getHostAddress();
         this.myGrpcPort = myGrpcPort;
@@ -41,6 +43,7 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
         this.myServerName = myServerName;
         this.database = database;
         this.consensusModule = new ConsensusModule();
+        this.readConsensus = readConsensus;
     }
 
     private String leaderIp = null;
@@ -89,7 +92,43 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
                     .usePlaintext()
                     .build();
             System.out.println("Channel to leader created!");
+
+            if(waitStartupDataUpdate){
+                this.requestDataUpdate();
+            }
         }
+    }
+
+    private void requestDataUpdate() {
+        AtomicBoolean workingOnUpdate = new AtomicBoolean(true);
+        StreamObserver<rpcsconsensusstubs.Data> dataStreamObserver = new StreamObserver<>() {
+            @Override
+            public void onNext(rpcsconsensusstubs.Data value) {
+                System.out.println("Data updated: " + value);
+                database.database.put(value.getKey(), new Database.Data(value.getData()));
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                System.out.println("Error updating data: " + t);
+                workingOnUpdate.set(false);
+            }
+
+            @Override
+            public void onCompleted() {
+                workingOnUpdate.set(false);
+            }
+        };
+
+        ConsensusServiceGrpc
+                .newStub(this.channel)
+                .update(Void.newBuilder().build(), dataStreamObserver);
+
+
+        while (workingOnUpdate.get());
+
+        waitStartupDataUpdate = false;
+        System.out.println("Update data finished!");
     }
 
     public ManagedChannel getChannel() {
@@ -110,7 +149,6 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
         } catch (SpreadException exception){
             System.out.println("Error multicasting message: requestWhoIsLeader " + exception);
         }
-        waitStartupDataUpdate = true;
     }
 
     @Override
@@ -233,7 +271,7 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
     }
 
     public boolean requestVote(String key, Database.Data dataToCommit) {
-        if(this.spreadMembersSize==2){
+        if(this.spreadMembersSize==2 || !this.readConsensus){
             return true;
         }
         if(this.amILeader()){
@@ -271,5 +309,16 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
         }
         responseObserver.onNext(Void.newBuilder().build());
         responseObserver.onCompleted();
+    }
+
+    @Override
+    public void update(Void request, StreamObserver<rpcsconsensusstubs.Data> responseObserver) {
+        if(this.amILeader()){
+            System.out.println("Participant requested data update!");
+            this.database.database.forEach((key, data) ->
+                    responseObserver.onNext(rpcsconsensusstubs.Data.newBuilder().setKey(key).setData(data.getData()).build()));
+            responseObserver.onCompleted();
+            System.out.println("Data update finished!");
+        }
     }
 }

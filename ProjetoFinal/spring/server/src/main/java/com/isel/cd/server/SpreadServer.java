@@ -19,9 +19,10 @@ public class SpreadServer implements Runnable{
     private final String name;
     private final Database database;
     private final boolean local;
+    private final boolean readConsensus;
     private SpreadConnection connection;
 
-    public SpreadServer(int port, int grpcPort, String groupId, String hostname, String name, boolean local) {
+    public SpreadServer(int port, int grpcPort, String groupId, String hostname, String name, boolean local, boolean readConsensus) {
         this.port = port;
         this.grpcPort = grpcPort;
         this.groupId = groupId;
@@ -29,6 +30,7 @@ public class SpreadServer implements Runnable{
         this.name = name;
         this.database = new Database();
         this.local = local;
+        this.readConsensus = readConsensus;
     }
 
     @Override

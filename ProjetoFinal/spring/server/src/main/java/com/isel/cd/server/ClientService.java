@@ -34,7 +34,7 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
             boolean consensus = this.leaderManager.requestVote(key, data);
 
             if(consensus){
-                System.out.println("Sending data to commit...");
+                System.out.println("Sending data...");
                 responseObserver.onNext(dataToCommit);
                 responseObserver.onCompleted();
             }else{
