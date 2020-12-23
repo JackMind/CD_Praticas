@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "rpcsconfigurationtubs";
+
+package configurationservice;
+
+service ConfigurationService {
+    rpc Servers(Void) returns(stream ListServers);
+}
+
+message ListServers {
+    repeated Server servers = 1;
+}
+
+message Server {
+    string name = 1;
+    string ip = 2;
+    uint32 port = 3;
+}
+
+message Void { }
+
+

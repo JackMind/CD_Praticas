@@ -47,6 +47,7 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
     private int leaderPort = -1;
     private String leaderServerName = "";
     private volatile int spreadMembersSize;
+    private volatile boolean waitStartupDataUpdate = true;
 
     @Override
     public void notifyServerLeave(SpreadGroup group, MembershipInfo info) {
@@ -56,6 +57,9 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
 
             int max = 0;
             for(SpreadGroup server: info.getMembers()){
+                if(this.getServerName(server).equals("Service")){
+                    continue;
+                }
                 int cardinality = this.getServerNameCardinality(server);
                 if(cardinality > max){
                     max = cardinality;
@@ -106,6 +110,7 @@ public class LeaderManager extends ConsensusServiceGrpc.ConsensusServiceImplBase
         } catch (SpreadException exception){
             System.out.println("Error multicasting message: requestWhoIsLeader " + exception);
         }
+        waitStartupDataUpdate = true;
     }
 
     @Override

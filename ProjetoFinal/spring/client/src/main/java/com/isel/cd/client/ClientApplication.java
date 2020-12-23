@@ -111,16 +111,34 @@ public class ClientApplication implements CommandLineRunner {
         return ManagedChannelBuilder.forAddress(choosedServer.getIp(), choosedServer.getPort()).usePlaintext().build();
     }
 
-    private Data read(String key, Channel channel) {
-        return ClientServiceGrpc
-                .newBlockingStub(channel)
-                .read(Key.newBuilder().setKey(key).build());
+    private Data read(String key, Channel channel) throws Exception {
+        try{
+            return ClientServiceGrpc
+                    .newBlockingStub(channel)
+                    .read(Key.newBuilder().setKey(key).build());
+        }catch (Exception exception){
+            System.out.println("Exception occurred on read, try new server! " + exception);
+            channel = createRandomServerChannel();
+            if(channel == null){
+                throw new Exception("No servers available.");
+            }
+            return read(key, channel);
+        }
     }
 
-    private void write(String key, String value, Channel channel) {
-        ClientServiceGrpc
-                .newBlockingStub(channel)
-                .write(Data.newBuilder().setData(value).setKey(key).build());
+    private void write(String key, String value, Channel channel) throws Exception {
+        try{
+            ClientServiceGrpc
+                    .newBlockingStub(channel)
+                    .write(Data.newBuilder().setData(value).setKey(key).build());
+        }catch (Exception exception){
+            System.out.println("Exception occurred on write, try new server! " + exception);
+            channel = createRandomServerChannel();
+            if(channel == null){
+                throw new Exception("No servers available.");
+            }
+            write(key, value, channel);
+        }
     }
 
 }

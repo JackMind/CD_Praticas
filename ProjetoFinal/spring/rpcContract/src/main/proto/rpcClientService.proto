@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "rpcsclientstubs";
+
+package clientservice;
+
+service ClientService {
+    rpc Read(Key) returns(Data);
+    rpc Write(Data) returns (Void);
+}
+
+message Key {
+    string key = 1;
+}
+
+message Data {
+    string key = 1;
+    string data = 2;
+}
+
+message Void { }
+
+

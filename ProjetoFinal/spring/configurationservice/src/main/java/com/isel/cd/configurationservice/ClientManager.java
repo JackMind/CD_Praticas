@@ -46,8 +46,7 @@ public class ClientManager implements Runnable{
         this.updateClients();
     }
 
-    public void printSpreadServers()
-    {
+    public void printSpreadServers() {
         System.out.println();
         System.out.println("Spread Servers:");
         for(Map.Entry<String, Server> member : spreadServers.entrySet())
