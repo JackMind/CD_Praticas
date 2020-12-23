@@ -37,6 +37,8 @@ public class ControlService extends ControlServiceGrpc.ControlServiceImplBase
     {
         ServerObserver observer = new ServerObserver(responseObserver);
         Service.messageBroadCast.clientsObservers.put(observer.observerId, responseObserver);
+        //broadcast inicial para novos clientes
+        Service.messageBroadCast.broadcast(WarnMsg.newBuilder().setWarning(Service.serverList()).build(), observer);
         return observer;
     }
 }

@@ -29,7 +29,7 @@ public class MessageBroadCast implements Runnable{
                 for(Map.Entry<UUID,StreamObserver<WarnMsg>> observer : clientsObservers.entrySet())
                 {
                     System.out.println("Broadcasting to " + observer.getKey());
-                    observer.getValue().onNext(warnMsg);
+                    broadcast(warnMsg, observer.getValue());
                 }
             }
 
@@ -39,5 +39,10 @@ public class MessageBroadCast implements Runnable{
                 e.printStackTrace();
             }
         }
+    }
+
+    public void broadcast(WarnMsg warnMsg, StreamObserver<WarnMsg> to)
+    {
+        to.onNext(warnMsg);
     }
 }

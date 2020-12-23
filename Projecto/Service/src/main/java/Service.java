@@ -78,12 +78,7 @@ public class Service
     public static String serverList()
     {
         StringBuilder str = new StringBuilder();
-        str.append("Active Servers:\n");
-        for(Map.Entry<String, SpreadGroup> entry : groupMembers.entrySet())
-        {
-            str.append("- ").append(entry.getKey()).append("\n");
-        }
-
+        for(Map.Entry<String, SpreadGroup> entry : groupMembers.entrySet()) str.append(entry.getKey()).append(";");
         return str.toString();
     }
 }

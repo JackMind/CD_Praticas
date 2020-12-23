@@ -18,16 +18,18 @@ public class ServerObserver implements StreamObserver<WarnMsg>
     @Override
     public void onNext(WarnMsg warnMsg)
     {
+        System.out.println("onNext from client: " + warnMsg);
         Service.messageBroadCast.messages.add(warnMsg);
     }
 
     @Override
     public void onError(Throwable throwable) {
-
+        System.out.println("On erro rom cleint: " + throwable);
     }
 
     @Override
     public void onCompleted() {
+        System.out.println("On compelted form cleint.");
         Service.messageBroadCast.clientsObservers.remove(observerId);
         this.clientObserver.onCompleted();
     }
