@@ -17,10 +17,9 @@ public class BaseMessage implements Serializable {
     public enum TYPE{
         NEW_LEADER,
         WHO_IS_LEADER,
-        NEW_DATA_FROM_LEADER,
-        ASK_DATA_TO_LEADER,
-        RESPONSE_DATA_FROM_LEADER,
-        WRITE_DATA_TO_LEADER;
+        APPEND_DATA,
+        ASK_DATA,
+        RESPONSE_DATA;
     }
 
 }

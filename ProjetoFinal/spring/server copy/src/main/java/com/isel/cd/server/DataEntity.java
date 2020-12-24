@@ -33,11 +33,6 @@ public class DataEntity implements Serializable{
         this.key = key;
     }
 
-    public DataEntity(DataEntity create) {
-        this.key = create.getKey();
-        this.data = create.getData();
-    }
-
     @lombok.Data
     @AllArgsConstructor
     @NoArgsConstructor

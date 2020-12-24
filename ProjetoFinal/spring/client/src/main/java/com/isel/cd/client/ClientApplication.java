@@ -77,7 +77,11 @@ public class ClientApplication implements CommandLineRunner {
                             key = input.split(" ")[1];
                             System.out.println("Read data with key: " + key);
                             Data data = read(key, serverChannel);
-                            System.out.println("Data: " + data);
+                            if(data.getData().isEmpty()){
+                                System.out.println("Data not found!");
+                            }else{
+                                System.out.println("Data: " + data);
+                            }
                             break;
                         case "w":
                             key = input.split(" ")[1];
@@ -89,6 +93,7 @@ public class ClientApplication implements CommandLineRunner {
                             System.out.println("Shutting down connections...");
                             configurationServiceChannel.shutdown();
                             serverChannel.shutdown();
+                            System.exit(0);
                             break;
                         default:
                             System.out.println("Option: " + option);
@@ -145,7 +150,7 @@ public class ClientApplication implements CommandLineRunner {
             if(channel == null){
                 throw new Exception("No servers available.");
             }
-            //write(key, value, channel);
+            write(key, value, channel);
         }
     }
 

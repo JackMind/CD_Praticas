@@ -27,7 +27,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     }
 
     private SpreadGroup leader;
-    private volatile boolean waitStartupDataUpdate = false;
+    private volatile boolean waitStartupDataUpdate = true;
 
     @Override
     public void notifyServerLeave(SpreadGroup group, MembershipInfo info) {
@@ -110,64 +110,49 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     }
 
     @Override
-    public void appendDataReceived(NewDataFromLeader appendData) {
+    public void appendDataReceived(AppendData appendData) {
         if(!this.amILeader()){
             System.out.println("Data update received from leader!");
             database.save(DataEntity.builder()
-                    .key(appendData.getData().getKey())
-                    .data(appendData.getData() == null ? new DataEntity.Data() : appendData.getData().getData() )
+                    .key(appendData.getKey())
+                    .data(appendData.getData() == null ? new DataEntity.Data() : new DataEntity.Data(appendData.getData().getData()))
                     .build());
-
-            WaitingDataWriteCallback waitingDataWriteCallback = waitingDataWritten.get(appendData.getData().getKey());
-            if(waitingDataWriteCallback != null){
-                System.out.println("Calling response callback...");
-                waitingDataWriteCallback.dataWritten(true);
-            }
         }
     }
 
     @Override
     public void dataRequestedToLeader(SpreadMessage spreadMessage) throws SpreadException {
         if(this.amILeader()){
-            AskDataToLeader askDataToLeader = (AskDataToLeader) spreadMessage.getObject();
-            System.out.println("Data requested to leader: " + askDataToLeader);
-            Optional<DataEntity> data = this.database.findById(askDataToLeader.getKey());
+            AskData askData = (AskData) spreadMessage.getObject();
+            System.out.println("Data requested to leader: " + askData);
+            Optional<DataEntity> data = this.database.findById(askData.getKey());
             if(data.isPresent()){
                 System.out.println("Data found: " + data.get());
-                connection.multicast(createUnicastMessage(new ResponseDataFromLeader(data.get()), spreadMessage.getSender()));
+                connection.multicast(createUnicastMessage(new ResponseData(data.get()), spreadMessage.getSender()));
             }else{
                 System.out.println("Data not found");
-                connection.multicast(createUnicastMessage(new ResponseDataFromLeader(askDataToLeader.getKey()), spreadMessage.getSender()));
+                connection.multicast(createUnicastMessage(new ResponseData(askData.getKey()), spreadMessage.getSender()));
             }
         }
     }
 
     @Override
     public void receivedResponseData(SpreadMessage spreadMessage) throws SpreadException {
-        ResponseDataFromLeader data = (ResponseDataFromLeader) spreadMessage.getObject();
+        ResponseData data = (ResponseData) spreadMessage.getObject();
         System.out.println("Received data from leader: " + data);
         System.out.println("Calling response callback...");
         waitingData.get(data.getData().getKey()).dataReceived(data.getData());
     }
 
-    @Override
-    public void writeDataToLeader(SpreadMessage spreadMessage) throws SpreadException {
-        if(this.amILeader()){
-            WriteDataToLeader data = (WriteDataToLeader) spreadMessage.getObject();
-            System.out.println("Received data to be written by leader: " + data);
-            this.saveDataAndUpdateParticipants(new DataEntity(data.getDataEntity()));
-        }
-    }
-
     public boolean amILeader(){
-        return this.leader != null && this.leader.equals(this.me);
+        return this.leader.equals(this.me);
     }
 
-    public void sendAppendDataToParticipants(DataEntity data){
+    public void sendAppendDataToParticipants(Data data){
         if(this.amILeader()){
             System.out.println("Send append data to all participants! " + data);
             try{
-                connection.multicast(createMulticastMessage(new NewDataFromLeader(data)));
+                connection.multicast(createMulticastMessage(new AppendData(data)));
             } catch (SpreadException spreadException){
                 System.out.println(spreadException);
             }
@@ -216,58 +201,25 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         }
     }
 
-    private final Map<String, WaitingDataReadCallback> waitingData = new HashMap<>();
+    private final Map<String, WaitingDataCallback> waitingData = new HashMap<>();
 
     public DataEntity requestDataToLeader(Key request) {
         AtomicReference<DataEntity> response = new AtomicReference<>();
-        WaitingDataReadCallback waitingDataReadCallback = (dataEntity) -> {
+        WaitingDataCallback waitingDataCallback = (dataEntity) -> {
             System.out.println("Response callback: " + dataEntity);
             response.set(dataEntity);
         };
 
         try{
             System.out.println("Request data to leader with key: " + request.getKey());
-            connection.multicast(createUnicastMessage(new AskDataToLeader(request.getKey()), this.leader));
-            waitingData.put(request.getKey(), waitingDataReadCallback);
+            connection.multicast(createUnicastMessage(new AskData(request.getKey()), this.leader));
+            waitingData.put(request.getKey(), waitingDataCallback);
         }catch (SpreadException exception){
             System.out.println("Error multicasting message: sendIAmLeaderMessage " + exception);
         }
 
         while (response.get()==null);
-        //TODO: timeout
-
-        waitingData.remove(request.getKey());
         System.out.println("Response received");
-
-        return response.get();
-    }
-
-    private final Map<String, WaitingDataWriteCallback> waitingDataWritten = new HashMap<>();
-
-
-    public boolean writeDataToLeader(Data request){
-        AtomicReference<Boolean> response = new AtomicReference<>();
-        WaitingDataWriteCallback waitingDataWriteCallback = successful -> {
-            System.out.println("Response callback data written: " + successful);
-            response.set(successful);
-        };
-
-        try{
-            System.out.println("Write data to leader with key: " + request);
-            connection.multicast(createUnicastMessage(
-                    new WriteDataToLeader(new DataEntity(request.getKey(), new DataEntity.Data(request.getData()))),
-                    this.leader));
-
-            waitingDataWritten.put(request.getKey(), waitingDataWriteCallback);
-        }catch (SpreadException exception){
-            System.out.println("Error multicasting message: writeDataToLeader " + exception);
-        }
-
-        while (response.get()==null);
-        //TODO: timeout
-
-        waitingDataWritten.remove(request.getKey());
-        System.out.println("Data written " + (response.get() ? "successfully" : "unsuccessfully") );
 
         return response.get();
     }
@@ -276,18 +228,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         return leader;
     }
 
-    public void saveDataAndUpdateParticipants(DataEntity request) {
-        this.database.save(request);
-        System.out.println("Saved on leader db" + request);
-        this.sendAppendDataToParticipants(request);
-    }
-
-    public interface WaitingDataReadCallback {
+    public interface WaitingDataCallback {
         void dataReceived(DataEntity dataEntity);
-    }
-
-
-    public interface WaitingDataWriteCallback {
-        void dataWritten(boolean successful);
     }
 }

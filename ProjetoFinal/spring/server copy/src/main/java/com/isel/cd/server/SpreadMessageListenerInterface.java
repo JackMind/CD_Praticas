@@ -1,7 +1,7 @@
 package com.isel.cd.server;
 
 
-import com.isel.cd.server.messages.NewDataFromLeader;
+import com.isel.cd.server.messages.AppendData;
 import spread.MembershipInfo;
 import spread.SpreadException;
 import spread.SpreadGroup;
@@ -21,11 +21,9 @@ public interface SpreadMessageListenerInterface {
 
     boolean doIHaveLeader();
 
-    void appendDataReceived(NewDataFromLeader appendData);
+    void appendDataReceived(AppendData appendData);
 
     void dataRequestedToLeader(SpreadMessage spreadMessage) throws SpreadException;
 
     void receivedResponseData(SpreadMessage spreadMessage) throws SpreadException;
-
-    void writeDataToLeader(SpreadMessage spreadMessage) throws SpreadException;
 }

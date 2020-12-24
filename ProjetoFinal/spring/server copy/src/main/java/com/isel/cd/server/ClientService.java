@@ -40,26 +40,31 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
                 .build());
 
         responseObserver.onCompleted();
+
     }
 
     @Override
     public void write(Data request, StreamObserver<Void> responseObserver) {
         if(this.leaderManager.amILeader()){
-            DataEntity dataEntity = DataEntity.builder()
-                    .key(request.getKey())
-                    .data(new DataEntity.Data(request.getData()))
-                    .build();
-
-            this.leaderManager.saveDataAndUpdateParticipants(dataEntity);
+            this.database.save(DataEntity.builder().key(request.getKey()).data(new DataEntity.Data(request.getData())).build());
+            //this.database.database.put(request.getKey(), new Database.Data(request.getData()) );
+            System.out.println("Saved on leader db" + request);
 
             responseObserver.onNext(Void.newBuilder().build());
             responseObserver.onCompleted();
-        }else{
-            System.out.println("Write data to leader: " + this.leaderManager.getLeader());
-            this.leaderManager.writeDataToLeader(request);
 
-            responseObserver.onNext(Void.newBuilder().build());
-            responseObserver.onCompleted();
+            this.leaderManager.sendAppendDataToParticipants(request);
+            //CONSENSUS
         }
+        /*else{
+            System.out.println("Write data to leader: " + this.leaderManager.getLeaderServerName());
+            ClientServiceGrpc
+                    .newBlockingStub(this.leaderManager.getChannel())
+                    .write(Data.newBuilder()
+                            .setData(request.getData())
+                            .setKey(request.getKey()).build());
+            responseObserver.onNext(Void.newBuilder().build());
+            responseObserver.onCompleted();
+        }*/
     }
 }

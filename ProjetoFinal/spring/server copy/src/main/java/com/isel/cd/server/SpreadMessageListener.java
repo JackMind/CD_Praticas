@@ -1,8 +1,9 @@
 package com.isel.cd.server;
 
 
-import com.isel.cd.server.messages.NewDataFromLeader;
+import com.isel.cd.server.messages.AppendData;
 import com.isel.cd.server.messages.BaseMessage;
+import com.isel.cd.server.messages.NewLeader;
 import spread.BasicMessageListener;
 import spread.MembershipInfo;
 import spread.SpreadMessage;
@@ -19,14 +20,14 @@ public class SpreadMessageListener implements BasicMessageListener {
             if(spreadMessage.isRegular()) {
                 BaseMessage message = (BaseMessage)spreadMessage.getObject();
                 switch (message.getType()){
-                    case ASK_DATA_TO_LEADER:
+                    case ASK_DATA:
                         spreadMessageListenerInterface.dataRequestedToLeader(spreadMessage);
                         break;
-                    case RESPONSE_DATA_FROM_LEADER:
+                    case RESPONSE_DATA:
                         spreadMessageListenerInterface.receivedResponseData(spreadMessage);
                         break;
-                    case NEW_DATA_FROM_LEADER:
-                        NewDataFromLeader appendData = (NewDataFromLeader) message;
+                    case APPEND_DATA:
+                        AppendData appendData = (AppendData) message;
                         spreadMessageListenerInterface.appendDataReceived(appendData);
                         break;
                     case NEW_LEADER:
@@ -34,9 +35,6 @@ public class SpreadMessageListener implements BasicMessageListener {
                         break;
                     case WHO_IS_LEADER:
                         spreadMessageListenerInterface.whoIsLeaderRequestedNotifyParticipantsWhoIsLeader();
-                        break;
-                    case WRITE_DATA_TO_LEADER:
-                        spreadMessageListenerInterface.writeDataToLeader(spreadMessage);
                         break;
                     default:
                         System.out.println("Unknown regular type message");
