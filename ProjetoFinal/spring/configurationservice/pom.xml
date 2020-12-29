@@ -58,15 +58,11 @@
             <groupId>cd</groupId>
             <artifactId>Spread</artifactId>
             <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${basedir}/../lib/spread-src-5.0.1.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>exgrpc</groupId>
             <artifactId>rpcConfigurationService</artifactId>
             <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${basedir}/../lib/rpcConfigurationServiceContract-1.0-SNAPSHOT.jar</systemPath>
         </dependency>
     </dependencies>
 
@@ -75,13 +71,27 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <excludes>
-                        <exclude>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <annotationProcessorPaths>
+                        <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
+                            <version>1.18.16</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
         </plugins>

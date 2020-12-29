@@ -1,6 +1,25 @@
 version: '3.7'
 
 services:
+  server1:
+    container_name: server1
+    image: server
+    environment:
+      hostname: "localhost"
+      spreadPort: 4803
+      grpcPort: 9000
+      groupID: "GRUPO123"
+      serverName: "Server222"
+      local: "true"
+      leader: "false"
+      timeout: 3
+      database: "database1"
+      databaseHost: "database"
+    ports:
+      - "9000:9000"
+      - "4803:4803"
+
+
   database:
     container_name: server-database
     image: postgres
@@ -12,3 +31,5 @@ services:
       - "5432:5432"
     volumes:
     - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+

@@ -21,8 +21,12 @@ import java.util.Scanner;
 @SpringBootApplication
 public class ConfigurationserviceApplication implements CommandLineRunner {
 
+    public static class Server {
+        private String ip;
+        private Integer port;
+    }
     @Value("#{${knownservers}}")
-    private Map<String, Integer> knownServers;
+    private Map<String, Server> knownServers;
     @Value("${grpcServerPort}")
     private Integer grpcServerPort;
     @Value("${SpreadServerPort}")

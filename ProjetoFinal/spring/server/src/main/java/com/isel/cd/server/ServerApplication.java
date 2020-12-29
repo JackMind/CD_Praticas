@@ -35,7 +35,7 @@ public class ServerApplication implements CommandLineRunner {
     }
 
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
 
         System.out.println("Initializing with settings...");
         System.out.println("hostname: " + hostname);

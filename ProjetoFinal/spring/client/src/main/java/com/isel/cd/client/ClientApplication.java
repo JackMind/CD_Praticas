@@ -97,7 +97,14 @@ public class ClientApplication implements CommandLineRunner {
                             break;
                         case "s":
                             key = input.split(" ")[1];
+                            serverChannel.shutdownNow();
                             serverChannel = createServerChannel(key);
+                            break;
+                        case "c":
+                            String ip = input.split(" ")[1];
+                            String port = input.split(" ")[2];
+                            serverChannel.shutdownNow();
+                            serverChannel = createServerChannel(ip, port);
                             break;
                         default:
                             System.out.println("Option: " + option);
@@ -109,6 +116,7 @@ public class ClientApplication implements CommandLineRunner {
                 }
             } else {
                 System.out.println("No channel... try to connect to one.");
+                serverChannel.shutdownNow();
                 serverChannel = createRandomServerChannel();
             }
 
@@ -116,6 +124,16 @@ public class ClientApplication implements CommandLineRunner {
 
 
     }
+
+    private ManagedChannel createServerChannel(String ip, String port) {
+        if(availableServers.isEmpty()){
+            System.out.println("No servers available!");
+            return null;
+        }
+        System.out.println("Connecting to Ip: " + ip + " ,port: " + port);
+        return ManagedChannelBuilder.forAddress(ip, Integer.parseInt(port)).usePlaintext().build();
+    }
+
 
     private ManagedChannel createServerChannel(String key) {
         if(availableServers.isEmpty()){

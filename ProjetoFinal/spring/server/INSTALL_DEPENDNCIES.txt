@@ -1,0 +1,5 @@
+isntalar dependencias no repo localdo maven para ser mais facil a compilar o  jar final
+
+mvn install:install-file -Dfile=../lib/rpcClientContract-1.0-SNAPSHOT.jar -DgroupId=exgrpc -DartifactId=rpcClientContract -Dversion=1.0 -Dpackaging=jar
+
+mvn install:install-file -Dfile=../lib/spread-src-5.0.1.jar -DgroupId=cd -DartifactId=Spread -Dversion=1.0 -Dpackaging=jar
