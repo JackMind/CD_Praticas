@@ -88,14 +88,10 @@ public class SpreadMessageListener implements BasicMessageListener {
 
                     } else if(info.isCausedByLeave()) {
                         System.out.println(info.getLeft() + " LEFT GROUP");
-                        if(spreadMessageListenerInterface.isLeaderMechanism()){
-                            spreadMessageListenerInterface.notifyServerLeave(info.getLeft(), info);
-                        }
+                        spreadMessageListenerInterface.notifyServerLeave(info.getLeft(), info);
                     }else if(info.isCausedByDisconnect()) {
                         System.out.println(info.getDisconnected() + " DISCONECTED");
-                        if(spreadMessageListenerInterface.isLeaderMechanism()) {
-                            spreadMessageListenerInterface.notifyServerLeave(info.getDisconnected(), info);
-                        }
+                        spreadMessageListenerInterface.notifyServerLeave(info.getDisconnected(), info);
                     }
                 }
             }

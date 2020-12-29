@@ -95,6 +95,10 @@ public class ClientApplication implements CommandLineRunner {
                             serverChannel.shutdown();
                             System.exit(0);
                             break;
+                        case "s":
+                            key = input.split(" ")[1];
+                            serverChannel = createServerChannel(key);
+                            break;
                         default:
                             System.out.println("Option: " + option);
                             System.out.println("Invalid option. [w <key> <value> , r <key>, exit]");
@@ -111,6 +115,16 @@ public class ClientApplication implements CommandLineRunner {
         }
 
 
+    }
+
+    private ManagedChannel createServerChannel(String key) {
+        if(availableServers.isEmpty()){
+            System.out.println("No servers available!");
+            return null;
+        }
+        Server choosedServer = availableServers.get(Integer.parseInt(key) - 1);
+        System.out.println("Choose server: " + choosedServer.getName());
+        return ManagedChannelBuilder.forAddress(choosedServer.getIp(), choosedServer.getPort()).usePlaintext().build();
     }
 
 

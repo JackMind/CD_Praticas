@@ -1,2 +1,3 @@
 CREATE DATABASE "database1";
 CREATE DATABASE "database2";
+CREATE DATABASE "database3";

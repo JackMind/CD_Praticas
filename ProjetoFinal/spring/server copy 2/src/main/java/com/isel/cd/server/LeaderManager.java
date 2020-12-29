@@ -2,7 +2,6 @@ package com.isel.cd.server;
 
 
 import com.isel.cd.server.messages.*;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import rpcsclientstubs.Data;
 import rpcsclientstubs.Key;
@@ -12,7 +11,6 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-@Slf4j
 public class LeaderManager implements SpreadMessageListenerInterface {
 
     private final DatabaseRepository database;
@@ -419,16 +417,13 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         final AtomicBoolean responseReceived = new AtomicBoolean(false);
 
         WaitingDataReadCallback waitingDataReadCallback = (dataDto) -> {
-            //System.out.println("Response callback: " + dataDto);
-            //System.out.println("Informação pedida recebida para a data: " + key) + ", com informação";
-            log.info("Informação pedida recebida para a data: {} com informação: {}", key, dataDto);
+            System.out.println("Response callback: " + dataDto);
             response.set(dataDto);
             responseReceived.set(true);
         };
 
         try{
-            log.info("Vou pedir a todos, se alguém tem: {}", key );
-            //System.out.println("Request data: " + key + " to group.");
+            System.out.println("Request data: " + key + " to group.");
             connection.multicast(createMulticastMessage(new AskData(key)));
 
             waitingData.put(key, waitingDataReadCallback);
@@ -454,16 +449,13 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             if(dataEntity.isPresent()){
                 update = dataEntity.get();
                 update.setData(new DataEntity.Data(dataDto.getData()));
-                System.out.println("Eu tenho esta, atualiza localmente.");
             }else{
-                System.out.println("Eu não tenho esta, cria nova localmente.");
                 update = new DataEntity(dataDto);
             }
 
             this.database.save(update);
 
-            //System.out.println("Send invalidate data: " + dataDto + " to group.");
-            System.out.println("Data armazenada localmente, envia mensagem de invalidação para os restantes participantes.");
+            System.out.println("Send invalidate data: " + dataDto + " to group.");
             connection.multicast(createMulticastMessage(new InvalidateData(dataDto.getKey())));
 
         }catch (SpreadException exception){

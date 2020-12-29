@@ -1,7 +1,6 @@
 package com.isel.cd.server;
 
 import io.grpc.stub.StreamObserver;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import rpcsclientstubs.ClientServiceGrpc;
 import rpcsclientstubs.Data;
@@ -12,7 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-@Slf4j
 public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
 
     private final Map<String, DataEntity.DataDto> localRepo = new HashMap<>();
@@ -28,7 +26,7 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
 
     @Override
     public void read(Key request, io.grpc.stub.StreamObserver<Data> responseObserver) {
-        log.info("Cliente pediu informação com key: {}",request.getKey());
+        System.out.println("Requested data with key: " + request.getKey());
 
         String key = request.getKey();
         Optional<DataEntity> data = this.database.findById(key);
@@ -38,26 +36,21 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
             if(withLeader){
                 response = this.leaderManager.requestDataToLeader(request);
             }else{
-                log.info("Não tenho a key: " + key + ", vou pedir....");
                 response = this.leaderManager.requestData(request.getKey());
                 //Saved on "local"
-                if(response != null){
-                    log.info("Outro servidor tinha a data, vou guardar uma replica localmente.");
-                    //System.out.println("Saved a local copy of the value");
-                    this.database.save(new DataEntity(response));
-                }
+                System.out.println("Saved a local copy of the value");
+                this.database.save(new DataEntity(response));
             }
         } else {
             response = new DataEntity.DataDto(data.get());
         }
 
-        //System.out.println("Sending data... " + response);
-        log.info("A enviar resposta para o cliente: {}",response);
+        System.out.println("Sending data... " + response);
         responseObserver
                 .onNext(
                     Data.newBuilder()
                     .setData(response == null ? "" : response.getData())
-                    .setKey(key)
+                    .setKey(request.getKey())
                     .build());
 
         responseObserver.onCompleted();
@@ -65,8 +58,7 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
 
     @Override
     public void write(Data request, StreamObserver<Void> responseObserver) {
-        log.info("Um cliente pediu para escrever: {}", request);
-        //System.out.println("Write received: " + request);
+        System.out.println("Write received: " + request);
         if(withLeader){
             if(this.leaderManager.amILeader()){
                 DataEntity dataEntity = DataEntity.builder()
@@ -79,7 +71,7 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
                 responseObserver.onNext(Void.newBuilder().build());
                 responseObserver.onCompleted();
             }else{
-                log.info("Write data to leader: {}", this.leaderManager.getLeader());
+                System.out.println("Write data to leader: " + this.leaderManager.getLeader());
                 this.leaderManager.writeDataToLeader(request);
 
                 responseObserver.onNext(Void.newBuilder().build());
