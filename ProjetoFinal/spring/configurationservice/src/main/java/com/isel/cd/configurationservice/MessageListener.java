@@ -1,15 +1,17 @@
 package com.isel.cd.configurationservice;
 
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import spread.*;
+
 @AllArgsConstructor
+@Slf4j
 public class MessageListener implements BasicMessageListener {
     private final ClientManager clientManager;
 
     @Override
     public void messageReceived(SpreadMessage spreadMessage) {
-        try
-        {
+        try {
 
             if (spreadMessage.isMembership()) {
                 MembershipInfo info = spreadMessage.getMembershipInfo();
@@ -20,29 +22,27 @@ public class MessageListener implements BasicMessageListener {
 
                 if (info.isRegularMembership()) {
                     if (info.isCausedByJoin()) {
-                        System.out.println(info.getJoined() + " JOINED GROUP");
+                        log.info( "{} JOINED GROUP", info.getJoined());
                         clientManager.addSpreadServer(info.getJoined());
                         clientManager.printSpreadServers();
                     } else if (info.isCausedByLeave()) {
-                        System.out.println(info.getLeft() + " LEFT GROUP");
+                        log.info( "{} LEFT GROUP", info.getLeft());
                         clientManager.removeSpreadServer(info.getLeft());
                         clientManager.printSpreadServers();
                     } else if (info.isCausedByDisconnect()) {
-                        System.out.println(info.getDisconnected() + " DISCONECTED");
+                        log.info( "{} DISCONECTED", info.getDisconnected());
                         clientManager.removeSpreadServer(info.getDisconnected());
                         clientManager.printSpreadServers();
                     }
                 } else if (info.isTransition()) {
-                    System.out.println("TRANSITIONAL membership for group " + group);
+                    log.info("TRANSITIONAL membership for group {}", group);
                 } else if (info.isSelfLeave()) {
-                    System.out.println("SELF-LEAVE message for group " + group);
+                    log.info("SELF-LEAVE message for group {}", group);
                     clientManager.removeSpreadServer(info.getLeft());
                 }
             }
-        }
-        catch(Exception e)
-        {
-            e.printStackTrace();
+        } catch(Exception e) {
+            log.error("Error: ",e);
             System.exit(1);
         }
     }

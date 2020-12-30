@@ -4,12 +4,12 @@ import io.grpc.stub.StreamObserver;
 import lombok.AllArgsConstructor;
 import rpcsconfigurationtubs.ListServers;
 
-import java.util.List;
+import java.util.Map;
 
 @AllArgsConstructor
 public class ConfigurationServiceObserver implements StreamObserver <ListServers> {
 
-    private final List<Server> availableServers;
+    private final Map<String, Server> availableServers;
 
     @Override
     public void onNext(ListServers value) {
@@ -17,7 +17,7 @@ public class ConfigurationServiceObserver implements StreamObserver <ListServers
         System.out.println(value);
 
         availableServers.clear();
-        value.getServersList().forEach(server -> availableServers.add(
+        value.getServersList().forEach(server -> availableServers.put(server.getName(),
                 Server.builder().ip(server.getIp()).port(server.getPort()).name(server.getName()).build()));
         System.out.println("Available servers: " + availableServers);
     }

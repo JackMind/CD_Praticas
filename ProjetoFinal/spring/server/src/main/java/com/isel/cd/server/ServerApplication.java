@@ -1,5 +1,6 @@
 package com.isel.cd.server;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -9,6 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import java.util.Scanner;
 
 @SpringBootApplication
+@Slf4j
 public class ServerApplication implements CommandLineRunner {
 
     @Value("${hostname}")
@@ -37,15 +39,15 @@ public class ServerApplication implements CommandLineRunner {
     @Override
     public void run(String... args) {
 
-        System.out.println("Initializing with settings...");
-        System.out.println("hostname: " + hostname);
-        System.out.println("spreadPort: " + spreadPort);
-        System.out.println("grpcPort: " + grpcPort);
-        System.out.println("groupID: " + groupID);
-        System.out.println("serverName: " + serverName);
-        System.out.println("local: " + local);
-        System.out.println("leader: " + leader);
-        System.out.println("timeoutInSec: " + timeout);
+        log.info("Initializing with settings...");
+        log.info("hostname: {}", hostname);
+        log.info("spreadPort: {}", spreadPort);
+        log.info("grpcPort: {}", grpcPort);
+        log.info("groupID: {}", groupID);
+        log.info("serverName: {}", serverName);
+        log.info("local: {}", local);
+        log.info("leader: {}", leader);
+        log.info("timeoutInSec: {}", timeout);
 
 
 
@@ -53,7 +55,7 @@ public class ServerApplication implements CommandLineRunner {
         server.run();
 
 
-        System.out.println("type exit to exit!");
+        log.info("type exit to exit!");
         Scanner myObj = new Scanner(System.in);
         myObj.nextLine();
 

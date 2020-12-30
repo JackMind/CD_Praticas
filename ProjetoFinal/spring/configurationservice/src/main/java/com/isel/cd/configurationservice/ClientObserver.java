@@ -2,10 +2,12 @@ package com.isel.cd.configurationservice;
 
 import io.grpc.stub.StreamObserver;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.UUID;
 
 @AllArgsConstructor
+@Slf4j
 public class ClientObserver implements StreamObserver<Void>{
 
     private final ClientManager clientManager;
@@ -14,17 +16,17 @@ public class ClientObserver implements StreamObserver<Void>{
 
     @Override
     public void onNext(Void value) {
-        System.out.println("Received from client! " + value);
+        log.info("Received from client! {}",value);
     }
 
     @Override
     public void onError(Throwable t) {
-        System.out.println("Error from client! " + t);
+        log.error("Error from client! ", t);
     }
 
     @Override
     public void onCompleted() {
-        System.out.println("Completed from client");
+        log.info("Completed from client");
         clientManager.removeClient(clientId);
     }
 }

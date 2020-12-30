@@ -1,6 +1,7 @@
 package com.isel.cd.configurationservice;
 
 import io.grpc.ServerBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -19,14 +20,13 @@ import java.util.Map;
 import java.util.Scanner;
 
 @SpringBootApplication
+@Slf4j
 public class ConfigurationserviceApplication implements CommandLineRunner {
 
-    public static class Server {
-        private String ip;
-        private Integer port;
-    }
+    @Value("#{${knowngroups}}")
+    private Map<String, String> knownGroups;
     @Value("#{${knownservers}}")
-    private Map<String, Server> knownServers;
+    private Map<String, Integer> knownServers;
     @Value("${grpcServerPort}")
     private Integer grpcServerPort;
     @Value("${SpreadServerPort}")
@@ -43,20 +43,24 @@ public class ConfigurationserviceApplication implements CommandLineRunner {
     }
 
     @Override
-    public void run(String... args) throws Exception {
-        System.out.println();
-        System.out.println();
+    public void run(String... args) {
 
-        try
-        {
+        log.info("Initializing with settings...");
+        log.info("hostname: {}", hostname);
+        log.info("spreadPort: {}", SpreadServerPort);
+        log.info("grpcPort: {}", grpcServerPort);
+        log.info("local: {}", local);
+        log.info("knownServers: {}", knownServers);
+        log.info("knownGroups: {}", knownGroups);
 
-            ClientManager clientManager = new ClientManager(knownServers);
+        try {
+
+            ClientManager clientManager = new ClientManager(knownServers, knownGroups);
 
             //GRPC C
             io.grpc.Server svc = ServerBuilder.forPort(grpcServerPort).addService(new ConfigurationService(clientManager)).build();
             svc.start();
-            System.out.println("Grpc Server started, listening on " + grpcServerPort);
-            System.out.println();
+            log.info("Grpc Server started, listening on " + grpcServerPort);
 
             new Thread(clientManager).start();
 
@@ -80,10 +84,8 @@ public class ConfigurationserviceApplication implements CommandLineRunner {
             connection.disconnect();
             svc.shutdown();
         }
-        catch(Exception ex)
-        {
-            System.out.println("!! Exceção !!");
-            ex.printStackTrace();
+        catch(Exception ex) {
+            log.error("!! Exceção !!", ex);
         }
     }
 }

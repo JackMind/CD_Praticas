@@ -1,12 +1,13 @@
 package com.isel.cd.server;
 
 
-import com.isel.cd.server.messages.NewDataFromLeader;
 import com.isel.cd.server.messages.BaseMessage;
+import lombok.extern.slf4j.Slf4j;
 import spread.BasicMessageListener;
 import spread.MembershipInfo;
 import spread.SpreadMessage;
 
+@Slf4j
 public class SpreadMessageListener implements BasicMessageListener {
     private final SpreadMessageListenerInterface spreadMessageListenerInterface;
     public SpreadMessageListener(SpreadMessageListenerInterface spreadMessageListenerInterface) {
@@ -18,7 +19,7 @@ public class SpreadMessageListener implements BasicMessageListener {
         try {
             if(spreadMessage.isRegular()) {
                 BaseMessage message = (BaseMessage)spreadMessage.getObject();
-                System.out.println(message);
+                //System.out.println(message);
                 switch (message.getType()){
                     case ASK_DATA_TO_LEADER:
                         spreadMessageListenerInterface.dataRequestedToLeader(spreadMessage);
@@ -60,7 +61,7 @@ public class SpreadMessageListener implements BasicMessageListener {
                         spreadMessageListenerInterface.startupDataReceived(spreadMessage);
                         break;
                     default:
-                        System.out.println("Unknown regular type message");
+                        log.warn("Unknown regular message type.");
                 }
             }
             else if(spreadMessage.isMembership()){
@@ -69,7 +70,7 @@ public class SpreadMessageListener implements BasicMessageListener {
 
                 if(info.isRegularMembership()) {
                     if(info.isCausedByJoin()) {
-                        System.out.println(info.getJoined() + " JOINED GROUP");
+                        log.info( "{} JOINED GROUP", info.getJoined());
                         //Configuration service already up
                         if(spreadMessageListenerInterface.isLeaderMechanism()){
                             if(info.getMembers().length <= 2){
@@ -87,21 +88,20 @@ public class SpreadMessageListener implements BasicMessageListener {
                         }
 
                     } else if(info.isCausedByLeave()) {
-                        System.out.println(info.getLeft() + " LEFT GROUP");
+                        log.info( "{} LEFT GROUP", info.getLeft());
                         if(spreadMessageListenerInterface.isLeaderMechanism()){
                             spreadMessageListenerInterface.notifyServerLeave(info.getLeft(), info);
                         }
                     }else if(info.isCausedByDisconnect()) {
-                        System.out.println(info.getDisconnected() + " DISCONECTED");
+                        log.info( "{} DISCONECTED", info.getDisconnected());
                         if(spreadMessageListenerInterface.isLeaderMechanism()) {
                             spreadMessageListenerInterface.notifyServerLeave(info.getDisconnected(), info);
                         }
                     }
                 }
             }
-            //PrintMessages.MessageDetails(spreadMessage);
         } catch(Exception e) {
-            e.printStackTrace();
+            log.error("Error on Spread Message Listener", e);
         }
     }
 }

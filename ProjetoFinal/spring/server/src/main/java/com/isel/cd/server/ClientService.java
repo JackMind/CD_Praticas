@@ -1,6 +1,7 @@
 package com.isel.cd.server;
 
 import io.grpc.stub.StreamObserver;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import rpcsclientstubs.ClientServiceGrpc;
@@ -26,8 +27,15 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
         this.withLeader = withLeader;
     }
 
+    @SneakyThrows
     @Override
     public void read(Key request, io.grpc.stub.StreamObserver<Data> responseObserver) {
+        if(leaderManager.isStartup()){
+            log.info("Servidor em startup...");
+            responseObserver.onNext(Data.newBuilder().build());
+            responseObserver.onCompleted();
+        }
+
         log.info("Cliente pediu informação com key: {}",request.getKey());
 
         String key = request.getKey();
@@ -63,8 +71,14 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
         responseObserver.onCompleted();
     }
 
+    @SneakyThrows
     @Override
     public void write(Data request, StreamObserver<Void> responseObserver) {
+        if(leaderManager.isStartup()){
+            log.info("Servidor em startup...");
+            responseObserver.onNext(Void.newBuilder().build());
+            responseObserver.onCompleted();
+        }
         log.info("Um cliente pediu para escrever: {}", request);
         //System.out.println("Write received: " + request);
         if(withLeader){

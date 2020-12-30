@@ -14,10 +14,7 @@ import rpcsconfigurationtubs.ConfigurationServiceGrpc;
 import rpcsconfigurationtubs.ListServers;
 import rpcsconfigurationtubs.Void;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.Scanner;
+import java.util.*;
 
 @SpringBootApplication
 public class ClientApplication implements CommandLineRunner {
@@ -31,7 +28,7 @@ public class ClientApplication implements CommandLineRunner {
         SpringApplication.run(ClientApplication.class, args);
     }
 
-    private static final List<Server> availableServers = new ArrayList<>();
+    private static final Map<String, Server> availableServers = new HashMap<>();
 
     @Override
     public void run(String... args) throws Exception {
@@ -96,15 +93,17 @@ public class ClientApplication implements CommandLineRunner {
                             System.exit(0);
                             break;
                         case "s":
-                            key = input.split(" ")[1];
                             serverChannel.shutdownNow();
-                            serverChannel = createServerChannel(key);
+                            serverChannel = selectServerChannel(input.split(" ")[1], input.split(" ")[2]);
                             break;
                         case "c":
                             String ip = input.split(" ")[1];
                             String port = input.split(" ")[2];
                             serverChannel.shutdownNow();
                             serverChannel = createServerChannel(ip, port);
+                            break;
+                        case "ls":
+                            printServerList();
                             break;
                         default:
                             System.out.println("Option: " + option);
@@ -135,12 +134,18 @@ public class ClientApplication implements CommandLineRunner {
     }
 
 
-    private ManagedChannel createServerChannel(String key) {
+    private void printServerList(){
+        availableServers.forEach((s, server) -> System.out.println(server));
+    }
+
+    private ManagedChannel selectServerChannel(String serverId, String nodeId) {
         if(availableServers.isEmpty()){
             System.out.println("No servers available!");
             return null;
         }
-        Server choosedServer = availableServers.get(Integer.parseInt(key) - 1);
+        String select = String.format("#Server%s#spreadNode%s",serverId, nodeId);
+        System.out.println("Select: " + select);
+        Server choosedServer = availableServers.get(select);
         System.out.println("Choose server: " + choosedServer.getName());
         return ManagedChannelBuilder.forAddress(choosedServer.getIp(), choosedServer.getPort()).usePlaintext().build();
     }
@@ -151,7 +156,10 @@ public class ClientApplication implements CommandLineRunner {
             System.out.println("No servers available!");
             return null;
         }
-        Server choosedServer = availableServers.get(new Random().nextInt(availableServers.size()));
+        Object[] list = availableServers.keySet().toArray();
+        int random = new Random().nextInt(list.length);
+
+        Server choosedServer = availableServers.get((String)list[random]);
         System.out.println("Choose server: " + choosedServer.getName());
         return ManagedChannelBuilder.forAddress(choosedServer.getIp(), choosedServer.getPort()).usePlaintext().build();
     }

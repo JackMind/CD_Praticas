@@ -1,6 +1,7 @@
 package com.isel.cd.server;
 
 import io.grpc.ServerBuilder;
+import lombok.extern.slf4j.Slf4j;
 import spread.SpreadConnection;
 import spread.SpreadException;
 import spread.SpreadGroup;
@@ -8,6 +9,7 @@ import spread.SpreadGroup;
 import java.io.IOException;
 import java.net.InetAddress;
 
+@Slf4j
 public class SpreadServer implements Runnable{
 
 
@@ -72,7 +74,7 @@ public class SpreadServer implements Runnable{
 
     public void stop()  {
         try{
-            System.out.println("Stop server:  " + this.name);
+            log.info("Stooping server: {}", this.name);
             connection.disconnect();
         }catch (SpreadException spreadException){
             System.out.println(spreadException);

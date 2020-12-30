@@ -1,6 +1,7 @@
 package com.isel.cd.configurationservice;
 
 import io.grpc.stub.StreamObserver;
+import lombok.extern.slf4j.Slf4j;
 import rpcsconfigurationtubs.ListServers;
 import rpcsconfigurationtubs.Server;
 import spread.SpreadGroup;
@@ -8,16 +9,18 @@ import spread.SpreadGroup;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-
+@Slf4j
 public class ClientManager implements Runnable{
 
     private final Map<String, Integer> serverPorts;
+    private final Map<String, String> groupIps;
     private final Map<UUID, StreamObserver<ListServers>> clientsObservers = new ConcurrentHashMap<>();
     private final Deque<ListServers> updateClientsMessages = new ArrayDeque<>();
     private final HashMap<String, Server> spreadServers = new HashMap<>();
 
-    public ClientManager(Map<String, Integer> knownServers) {
+    public ClientManager(Map<String, Integer> knownServers, Map<String, String> knownGroups) {
         this.serverPorts = knownServers;
+        this.groupIps = knownGroups;
     }
 
     public void addSpreadServer(SpreadGroup server){
@@ -29,29 +32,28 @@ public class ClientManager implements Runnable{
         String serverIp = getServerIp(server);
 
         Server serverToBeAdded = Server.newBuilder()
-            .setName(serverName)
-            .setIp(serverIp)
+            .setName(server.toString())
+            .setIp(groupIps.get(serverIp))
             .setPort(serverPorts.get(serverName))
             .build();
 
-        spreadServers.put(serverName, serverToBeAdded);
-        System.out.println("Added server: " + serverToBeAdded);
+        spreadServers.put(server.toString(), serverToBeAdded);
+        log.info("Added server: {}", serverToBeAdded);
         this.updateClients();
     }
 
     public void removeSpreadServer(SpreadGroup server){
-        String serverName =getServerName(server);
-        spreadServers.remove(serverName);
-        System.out.println("Removed server: " + serverName);
+        //String serverName =getServerName(server);
+        spreadServers.remove(server.toString());
+        log.info("Removed server: {}", server.toString());
         this.updateClients();
     }
 
     public void printSpreadServers() {
-        System.out.println();
-        System.out.println("Spread Servers:");
+        log.info("Spread Servers:");
         for(Map.Entry<String, Server> member : spreadServers.entrySet())
         {
-            System.out.println(member.getKey() + " " + member.getValue());
+            log.info("{} {}",member.getKey() , member.getValue());
         }
     }
 
@@ -71,8 +73,8 @@ public class ClientManager implements Runnable{
     }
 
     private void updateClients(){
-        this.updateClientsMessages.add(getAvailableServers());
-        System.out.println("Added message for clients: " + this.updateClientsMessages.size());
+        this.updateClientsMessages.push(getAvailableServers());
+        log.info("Added message for clients: {}", this.updateClientsMessages.size());
     }
 
     public ListServers getAvailableServers(){
@@ -85,11 +87,10 @@ public class ClientManager implements Runnable{
     public void run() {
         while (true) {
             if(!this.updateClientsMessages.isEmpty()) {
-                System.out.println();
                 final ListServers spreadServers = this.updateClientsMessages.pop();
-
+                log.info("Sending new list of servers: {}", spreadServers);
                 clientsObservers.forEach((uuid, listServersStreamObserver) -> {
-                    System.out.println("Send new spread servers list to " + uuid);
+                    log.info("Send new spread servers list to {}", uuid);
                     listServersStreamObserver.onNext(spreadServers);
                 });
             }

@@ -37,7 +37,8 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     @Override
     public void notifyServerLeave(SpreadGroup group, MembershipInfo info) {
         if(group.equals(this.leader) ){
-            System.out.println("Leader: " + this.leader + " no longer exists");
+
+            log.info("Leader: {} no longer exists", this.leader);
 
             int max = 0;
             int leaderIndex = 0;
@@ -53,11 +54,11 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             }
 
             this.leader = info.getMembers()[leaderIndex];
-            System.out.println("New leader: " + this.leader + " with cardinality: " + max);
+            log.info("New leader: {} with cardinality: {}", this.leader, max);
         }
 
         if(amILeader()){
-            System.out.println("I'm leader, notify everyone!");
+            log.info("LEADER: I'm leader, notify everyone!");
             this.sendIAmLeaderMessage();
         }
     }
@@ -66,8 +67,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     public void assignNewLeader(SpreadMessage spreadMessage) throws InterruptedException {
         if(!this.me.equals(spreadMessage.getSender())){
             leader = spreadMessage.getSender();
-            System.out.println("NEW LEADER! " + leader);
-
+            log.info("Recebida mensagem de novo leader, novo leader é: {}", leader);
             if(waitStartupDataUpdate){
                 this.requestDataUpdate();
             }
@@ -77,11 +77,11 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     @Async
     void requestDataUpdate() {
         try{
-            System.out.println("Request startup data update to leader: " + this.leader);
+            log.info("Pedido de informação de startup ao leader: {}", this.leader);
             connection.multicast(createUnicastMessage(new StartupRequest(), this.leader));
 
         }catch (SpreadException exception){
-            System.out.println("Error multicasting message: requestDataUpdate " + exception);
+            log.error("Error multicasting message: requestDataUpdate ", exception);
         }
         waitStartupDataUpdate = false;
     }
@@ -89,23 +89,23 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     @Override
     public void assignFirstLeader(SpreadGroup spreadGroup) {
         this.leader = spreadGroup;
-        System.out.println("First leader: " + this.leader);
+        log.info("Primeiro leader: {}", this.leader);
     }
 
     @Override
     public void requestWhoIsLeader() {
-        System.out.println("Request who is leader!");
+        log.info("Irei perguntar ao grupo quem é o leader!");
         try{
             connection.multicast(createMulticastMessage(new BaseMessage(BaseMessage.TYPE.WHO_IS_LEADER)));
         } catch (SpreadException exception){
-            System.out.println("Error multicasting message: requestWhoIsLeader " + exception);
+            log.error("Error multicasting message: requestWhoIsLeader ", exception);
         }
     }
 
     @Override
     public void whoIsLeaderRequestedNotifyParticipantsWhoIsLeader() {
         if(this.amILeader()){
-            System.out.println("Who is leader received, notify that i am leader! " + this.me);
+            log.info("LEADER: Alguém perguntou quem é o leader, vou notificar toda a gente que eu sou o leader: {}", this.me);
             this.sendIAmLeaderMessage();
         }
     }
@@ -119,7 +119,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     public void appendDataReceived(SpreadMessage spreadMessage) throws SpreadException {
         if(!this.amILeader()){
             NewDataFromLeader appendData = (NewDataFromLeader) spreadMessage.getObject();
-            System.out.println("Data update received from leader!");
+            log.info("Informação recebida do leader: {} para ser replicada!", spreadMessage.getSender());
             database.save(DataEntity.builder()
                     .key(appendData.getData().getKey())
                     .data(appendData.getData() == null ? new DataEntity.Data() : appendData.getData().getData() )
@@ -127,7 +127,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
 
             WaitingDataWriteCallback waitingDataWriteCallback = waitingDataWritten.get(appendData.getData().getKey());
             if(waitingDataWriteCallback != null){
-                System.out.println("Calling response callback...");
+                log.info("Resposta recebida para a key: {}", appendData.getData().getKey());
                 waitingDataWriteCallback.dataWritten(true);
             }
         }
@@ -137,13 +137,13 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     public void dataRequestedToLeader(SpreadMessage spreadMessage) throws SpreadException {
         if(this.amILeader()){
             AskDataToLeader askDataToLeader = (AskDataToLeader) spreadMessage.getObject();
-            System.out.println("Data requested to leader: " + askDataToLeader);
+            log.info("LEADER: {} perguntou-me se tenho informação sobre a key: {}",spreadMessage.getSender(), askDataToLeader.getKey());
             Optional<DataEntity> data = this.database.findById(askDataToLeader.getKey());
             if(data.isPresent()){
-                System.out.println("Data found: " + data.get());
+                log.info("LEADER: Tenho a informação: {}", data.get());
                 connection.multicast(createUnicastMessage(new ResponseDataFromLeader(data.get()), spreadMessage.getSender()));
             }else{
-                System.out.println("Data not found");
+                log.info("LEADER: Não tenho a informação!");
                 connection.multicast(createUnicastMessage(new ResponseDataFromLeader(askDataToLeader.getKey()), spreadMessage.getSender()));
             }
         }
@@ -152,8 +152,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     @Override
     public void receivedResponseData(SpreadMessage spreadMessage) throws SpreadException {
         ResponseDataFromLeader data = (ResponseDataFromLeader) spreadMessage.getObject();
-        System.out.println("Received data from leader: " + data);
-        System.out.println("Calling response callback...");
+        log.info("Received data from leader: " + data);
       //  waitingData.get(data.getData().getKey()).dataReceived(data.getData());
     }
 
@@ -161,7 +160,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     public void writeDataToLeader(SpreadMessage spreadMessage) throws SpreadException {
         if(this.amILeader()){
             WriteDataToLeader data = (WriteDataToLeader) spreadMessage.getObject();
-            System.out.println("Received data to be written by leader: " + data);
+            log.info("LEADER: Recebi informação para ser escrita: {}", data);
             this.saveDataAndUpdateParticipants(new DataEntity(data.getDataEntity()));
         }
     }
@@ -169,7 +168,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     @Override
     public void startupDataRequested(SpreadMessage spreadMessage) {
         if(this.amILeader()){
-            System.out.println("Requested startup data from: " + spreadMessage.getSender());
+            log.info("LEADER: {} pediu informação de startup", spreadMessage.getSender());
             /*try{
                 connection.multicast(createUnicastMessage(new StartupResponse(this.database.findAll()), spreadMessage.getSender()));
             }catch (SpreadException exception){
@@ -184,22 +183,22 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         if(waitStartupDataUpdate){
             StartupResponse startupResponse = (StartupResponse)spreadMessage.getObject();
            // this.database.saveAll(startupResponse.getDataEntityList());
-            System.out.println(this.database.findById("key"));
+            log.info(this.database.findById("key").toString());
         }
-        System.out.println("Update data finished!");
+        log.info("Update data finished!");
     }
 
     @Override
     public void askDataResponse(SpreadMessage spreadMessage) throws SpreadException {
         AskData askData = (AskData) spreadMessage.getObject();
-        System.out.println("Ask data received for key: " + askData.getKey() );
+        log.info("{} está a procura da informação key: {}", spreadMessage.getSender(), askData.getKey());
         Optional<DataEntity> dataEntity = this.database.findById(askData.getKey());
         if (dataEntity.isPresent()) {
-            System.out.println("Got data: " + dataEntity.get() + " , sending to: " + spreadMessage.getSender());
+            log.info("Eu tenho a informação: {}, vou enviar para: {}", dataEntity.get(), spreadMessage.getSender());
             try{
                 connection.multicast(createUnicastMessage(new AskDataResponse(dataEntity.get()),spreadMessage.getSender() ));
             }catch (SpreadException exception){
-                System.out.println("Error multicasting message: requestDataUpdate " + exception);
+                log.error("Error multicasting message: askDataResponse ", exception);
             }
         }
     }
@@ -207,10 +206,9 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     @Override
     public void askDataResponseReceived(SpreadMessage spreadMessage) throws SpreadException {
         AskDataResponse askDataResponse = (AskDataResponse) spreadMessage.getObject();
-
         WaitingDataReadCallback callback = waitingData.get(askDataResponse.getDataDto().getKey());
         if(callback != null){
-            System.out.println("Ask data response received: " + askDataResponse.getDataDto());
+            log.info("Recebi resposta da informação que pedi: {}", askDataResponse.getDataDto());
             callback.dataReceived(askDataResponse.getDataDto());
         }
     }
@@ -221,8 +219,9 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             return;
         }
         InvalidateData invalidateData = (InvalidateData) spreadMessage.getObject();
-        System.out.println("Invalidate data received for key:" + invalidateData.getKey());
+        log.info("Invalidação recebida para a key: {}", invalidateData.getKey());
         if(this.database.findById(invalidateData.getKey()).isPresent()){
+            log.info("A remover key: {}", invalidateData.getKey());
             this.database.deleteById(invalidateData.getKey());
         }
     }
@@ -235,7 +234,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     @Override
     public void checkStartup(MembershipInfo info) throws SpreadException {
         if(waitStartupDataUpdate){
-
+            log.info("A eleger leader para me ajudar no startup.");
             int max = 0;
             int leaderIndex = 0;
             for(int index = 0; index < info.getMembers().length; index++){
@@ -250,12 +249,12 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             }
 
             this.leader = info.getMembers()[leaderIndex];
-            System.out.println("Startup leader: " + this.leader + " with cardinality: " + max);
+            log.info("Elegi o leader {} com cardinalidade: {}", this.leader, max);
 
             List<DataEntity.DataDto> dataDtos = new ArrayList<>();
             this.database.findAll().forEach( dataEntity -> dataDtos.add(new DataEntity.DataDto(dataEntity)));
 
-            System.out.println("Request startup data: " + dataDtos);
+            log.info("Vou pedir startup para a informação: {}", dataDtos);
             connection.multicast(createUnicastMessage(new StartupRequestUpdate(dataDtos), this.leader));
 
         }
@@ -263,7 +262,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
 
     @Override
     public void sendStartupData(SpreadMessage spreadMessage) throws SpreadException {
-        System.out.println("Send startup data");
+        log.info("LEADER=={}: Recebi o pedido de ajuda para o startup de: {}", this.me, spreadMessage.getSender());
         StartupRequestUpdate startupRequestUpdate = (StartupRequestUpdate) spreadMessage.getObject();
 
         List<DataEntity.DataDto> startupResponse = new ArrayList<>();
@@ -273,14 +272,14 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         });
 
 
-        System.out.println("Send startup data: " + startupResponse);
+        log.info("Vou devolver a seguinte informação de startup: {}", startupResponse);
         connection.multicast(createUnicastMessage(new StartupResponseUpdate(startupResponse), spreadMessage.getSender()));
     }
 
     @Override
     public void startupDataReceived(SpreadMessage spreadMessage) throws SpreadException {
         StartupResponseUpdate startupResponseUpdate = (StartupResponseUpdate) spreadMessage.getObject();
-        System.out.println("Startup response received... " + startupResponseUpdate);
+        log.info("Recebi informação de startup do leader: {} com informação: {}", spreadMessage.getSender(), startupResponseUpdate);
         startupResponseUpdate.getDataDtoList().forEach(dataDto -> {
             Optional<DataEntity> dataEntity = this.database.findById(dataDto.getKey());
             dataEntity.ifPresent(entity -> {
@@ -288,20 +287,22 @@ public class LeaderManager implements SpreadMessageListenerInterface {
                 this.database.save(entity);
             });
         });
+        log.info("Startup completo.");
         waitStartupDataUpdate = false;
     }
 
+    public boolean isStartup(){return waitStartupDataUpdate;}
     public boolean amILeader(){
         return this.leader != null && this.leader.equals(this.me);
     }
 
     public void sendAppendDataToParticipants(DataEntity data){
         if(this.amILeader()){
-            System.out.println("Send append data to all participants! " + data);
+            log.info("LEADER: A enviar replica de informação para todos os participantes: {}", data);
             try{
                 connection.multicast(createMulticastMessage(new NewDataFromLeader(data)));
             } catch (SpreadException spreadException){
-                System.out.println(spreadException);
+                log.error("Error multicasting message: sendAppendDataToParticipants ", spreadException);
             }
         }
     }
@@ -309,10 +310,14 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     private String getServerName(SpreadGroup group){
         return group.toString().split("#")[1];
     }
+    private String getServerIp(SpreadGroup group){
+        return group.toString().split("#")[2];
+    }
 
     private int getServerNameCardinality(SpreadGroup group){
         String server = this.getServerName(group);
-        return Integer.parseInt(server.substring(server.length()-1));
+        String ip = this.getServerIp(group);
+        return Integer.parseInt(server.substring(server.length()-1)) + Integer.parseInt(ip.substring(ip.length()-1));
     }
 
     private SpreadMessage createMulticastMessage(BaseMessage message){
@@ -322,7 +327,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             spreadMessage.addGroup(groupId);
             spreadMessage.setReliable();
         }catch (SpreadException exception){
-            System.out.println("Error creating message: " + exception);
+            log.error("Error creating multicast message:  ", exception);
         }
         return spreadMessage;
     }
@@ -334,7 +339,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             spreadMessage.addGroup(group.toString());
             spreadMessage.setReliable();
         }catch (SpreadException exception){
-            System.out.println("Error creating message: " + exception);
+            log.error("Error creating unicast message:  ", exception);
         }
         return spreadMessage;
     }
@@ -344,32 +349,33 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         try{
             connection.multicast(createMulticastMessage(new NewLeader()));
         }catch (SpreadException exception){
-            System.out.println("Error multicasting message: sendIAmLeaderMessage " + exception);
+            log.error("Error multicasting message: sendIAmLeaderMessage ", exception);
         }
     }
 
     private final Map<String, WaitingDataReadCallback> waitingData = new HashMap<>();
 
-    public DataEntity.DataDto requestDataToLeader(Key request) {
+    public DataEntity.DataDto requestDataToLeader(Key request) throws InterruptedException {
+        AtomicBoolean received = new AtomicBoolean(false);
         AtomicReference<DataEntity.DataDto> response = new AtomicReference<>();
         WaitingDataReadCallback waitingDataReadCallback = (dataEntity) -> {
-            System.out.println("Response callback: " + dataEntity);
+            log.info("Pedido de informação ao leader recebido: {}", dataEntity);
             response.set(dataEntity);
+            received.set(true);
         };
 
         try{
-            System.out.println("Request data to leader with key: " + request.getKey());
+            log.info("Vou pedir informação ao leader, key: {}", request.getKey());
             connection.multicast(createUnicastMessage(new AskDataToLeader(request.getKey()), this.leader));
             waitingData.put(request.getKey(), waitingDataReadCallback);
         }catch (SpreadException exception){
-            System.out.println("Error multicasting message: sendIAmLeaderMessage " + exception);
+            log.error("Error multicasting message: requestDataToLeader ", exception);
         }
 
-        while (response.get()==null);
-        //TODO: timeout
+        waitForResponse(received);
 
         waitingData.remove(request.getKey());
-        System.out.println("Response received");
+        log.info("Resposta recebida");
 
         return response.get();
     }
@@ -377,29 +383,31 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     private final Map<String, WaitingDataWriteCallback> waitingDataWritten = new HashMap<>();
 
 
-    public boolean writeDataToLeader(Data request){
+    public boolean writeDataToLeader(Data request) throws InterruptedException {
+        AtomicBoolean received = new AtomicBoolean(false);
         AtomicReference<Boolean> response = new AtomicReference<>();
         WaitingDataWriteCallback waitingDataWriteCallback = successful -> {
-            System.out.println("Response callback data written: " + successful);
+            log.info("Pedido de escrita ao leader completado com estado: {}", successful);
             response.set(successful);
+            received.set(true);
         };
 
         try{
-            System.out.println("Write data to leader with key: " + request);
+            log.info("Vou pedir ao leader para escrever a informação: {}", request);
             connection.multicast(createUnicastMessage(
                     new WriteDataToLeader(new DataEntity(request.getKey(), new DataEntity.Data(request.getData()))),
                     this.leader));
 
             waitingDataWritten.put(request.getKey(), waitingDataWriteCallback);
         }catch (SpreadException exception){
-            System.out.println("Error multicasting message: writeDataToLeader " + exception);
+            log.error("Error multicasting message: writeDataToLeader ", exception);
         }
 
-        while (response.get()==null);
-        //TODO: timeout
+        waitForResponse(received);
 
         waitingDataWritten.remove(request.getKey());
-        System.out.println("Data written " + (response.get() ? "successfully" : "unsuccessfully") );
+
+        log.info("Informação {} escrita no leader com estado: {}", request,(response.get() ? "successfully" : "unsuccessfully"));
 
         return response.get();
     }
@@ -410,7 +418,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
 
     public void saveDataAndUpdateParticipants(DataEntity request) {
         this.database.save(request);
-        System.out.println("Saved on leader db" + request);
+        log.info("LEADER: Informação guardada na db: {}", request);
         this.sendAppendDataToParticipants(request);
     }
 
@@ -436,10 +444,8 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             waitForResponse(responseReceived);
 
             waitingData.remove(key);
-        }catch (SpreadException exception){
-            System.out.println("Error multicasting message: writeDataToLeader " + exception);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        }catch (SpreadException | InterruptedException exception){
+            log.error("Error multicasting message: requestData ", exception);
         }
 
         return response.get();
@@ -454,24 +460,22 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             if(dataEntity.isPresent()){
                 update = dataEntity.get();
                 update.setData(new DataEntity.Data(dataDto.getData()));
-                System.out.println("Eu tenho esta, atualiza localmente.");
+                log.info("Eu tenho esta, atualiza localmente.");
             }else{
-                System.out.println("Eu não tenho esta, cria nova localmente.");
+                log.info("Eu não tenho esta, cria nova localmente.");
                 update = new DataEntity(dataDto);
             }
 
             this.database.save(update);
 
-            //System.out.println("Send invalidate data: " + dataDto + " to group.");
-            System.out.println("Data armazenada localmente, envia mensagem de invalidação para os restantes participantes.");
+            log.info("Data armazenada localmente, envia mensagem de invalidação para os restantes participantes.");
             connection.multicast(createMulticastMessage(new InvalidateData(dataDto.getKey())));
 
         }catch (SpreadException exception){
-            System.out.println("Error multicasting message: writeDataToLeader " + exception);
+            log.error("Error multicasting message: writeData ", exception);
         }
 
     }
-
 
     public interface WaitingDataReadCallback {
         void dataReceived(DataEntity.DataDto dataDto);
@@ -487,7 +491,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         while(!responseReceived.get()) {
             Thread.sleep(100);
             if(System.currentTimeMillis() > end) {
-                System.out.println("Timeout reached!");
+                log.warn("Timeout reached!");
                 break;
             }
         }
