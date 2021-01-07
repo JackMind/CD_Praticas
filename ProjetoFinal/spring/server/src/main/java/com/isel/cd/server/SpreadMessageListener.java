@@ -60,12 +60,22 @@ public class SpreadMessageListener implements BasicMessageListener {
                     case STARTUP_RESPONSE_UPDATE:
                         spreadMessageListenerInterface.startupDataReceived(spreadMessage);
                         break;
+                    case WANT_TO_WRITE:
+                        spreadMessageListenerInterface.wantToWriteReceived(spreadMessage);
+                        break;
+                    case WANT_TO_WRITE_RESPONSE:
+                        spreadMessageListenerInterface.wantToWriteResponse(spreadMessage);
+                        break;
+                    case WRITE_CONFLICT:
+                        spreadMessageListenerInterface.conflictReceived(spreadMessage);
+                        break;
                     default:
                         log.warn("Unknown regular message type.");
                 }
             }
             else if(spreadMessage.isMembership()){
                 MembershipInfo info = spreadMessage.getMembershipInfo();
+                spreadMessageListenerInterface.updateNumberOfParticipants(info.getMembers().length);
                 //SpreadGroup group = info.getGroup();
 
                 if(info.isRegularMembership()) {

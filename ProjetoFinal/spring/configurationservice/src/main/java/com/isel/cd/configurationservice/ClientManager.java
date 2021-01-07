@@ -31,9 +31,10 @@ public class ClientManager implements Runnable{
         String serverName =getServerName(server);
         String serverIp = getServerIp(server);
 
+        log.info("Server ip {}", serverIp);
         Server serverToBeAdded = Server.newBuilder()
             .setName(server.toString())
-            .setIp(groupIps.get(serverIp))
+            .setIp(groupIps.getOrDefault(serverIp, "localhost"))
             .setPort(serverPorts.get(serverName))
             .build();
 

@@ -48,7 +48,7 @@ public class SpreadServer implements Runnable{
             connection.connect(this.local ? InetAddress.getLocalHost() : InetAddress.getByName(hostname),
                     port, name, false, true);
 
-            LeaderManager leaderManager = new LeaderManager(connection, groupId, database, timeout, leader);
+            LeaderManager leaderManager = new LeaderManager(connection, groupId, database, timeout, leader, local);
 
             //Listener das mensagens multicast
             SpreadMessageListener msgHandling = new SpreadMessageListener(leaderManager);

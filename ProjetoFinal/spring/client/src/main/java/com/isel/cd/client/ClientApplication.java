@@ -96,6 +96,10 @@ public class ClientApplication implements CommandLineRunner {
                             serverChannel.shutdownNow();
                             serverChannel = selectServerChannel(input.split(" ")[1], input.split(" ")[2]);
                             break;
+                        case "sl":
+                            serverChannel.shutdownNow();
+                            serverChannel = selectServerChannelFromList(input.split(" ")[1]);
+                            break;
                         case "c":
                             String ip = input.split(" ")[1];
                             String port = input.split(" ")[2];
@@ -122,6 +126,12 @@ public class ClientApplication implements CommandLineRunner {
         }
 
 
+    }
+
+    private ManagedChannel selectServerChannelFromList(String s) {
+        Server choosedServer = availableServers.get(Integer.parseInt(s) - 1);
+        System.out.println("Choose server: " + choosedServer.getName());
+        return ManagedChannelBuilder.forAddress(choosedServer.getIp(), choosedServer.getPort()).usePlaintext().build();
     }
 
     private ManagedChannel createServerChannel(String ip, String port) {

@@ -15,6 +15,9 @@ public class BaseMessage implements Serializable {
     }
 
     public enum TYPE{
+        WRITE_CONFLICT,
+        WANT_TO_WRITE_RESPONSE,
+        WANT_TO_WRITE,
         NEW_LEADER,
         WHO_IS_LEADER,
         NEW_DATA_FROM_LEADER,
