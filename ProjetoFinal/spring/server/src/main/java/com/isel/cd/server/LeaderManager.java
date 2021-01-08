@@ -4,9 +4,6 @@ package com.isel.cd.server;
 import com.isel.cd.server.messages.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
-import rpcsclientstubs.Data;
-import rpcsclientstubs.Key;
 import spread.*;
 
 import java.util.*;
@@ -21,178 +18,26 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     private final String groupId;
     private final SpreadGroup me;
     private final int timeoutInSec;
-    private final boolean leaderMechanism;
     private final boolean local;
+    private final boolean test_conflict;
 
     private final Map<String, WRITE_STATE> writeLocks = new HashMap<>();
+    private final Map<String, WaitingDataReadCallback> waitingData = new HashMap<>();
+    private final Map<String, WantToWriteData> wantToWriteData = new HashMap<>();
 
-    public LeaderManager(final SpreadConnection connection, final String groupId, final DatabaseRepository database, final int timeoutInSec, final boolean leaderMechanism, final boolean local) {
+
+    public LeaderManager(final SpreadConnection connection, final String groupId, final DatabaseRepository database, final int timeoutInSec, final boolean local, final boolean test_conflict) {
         this.connection = connection;
         this.me = connection.getPrivateGroup();
         this.groupId = groupId;
         this.database = database;
         this.timeoutInSec = timeoutInSec;
-        this.leaderMechanism = leaderMechanism;
         this.local = local;
+        this.test_conflict = test_conflict;
     }
 
     private int numberOfParticipants = -1;
-    private SpreadGroup leader;
     private volatile boolean waitStartupDataUpdate = true;
-
-    @Override
-    public void notifyServerLeave(SpreadGroup group, MembershipInfo info) {
-        if(group.equals(this.leader) ){
-
-            log.info("Leader: {} no longer exists", this.leader);
-
-            int max = 0;
-            int leaderIndex = 0;
-            for(int index = 0; index < info.getMembers().length; index++){
-                if(this.getServerName(info.getMembers()[index]).equals("Service")){
-                    continue;
-                }
-                int cardinality = this.getServerNameCardinality(info.getMembers()[index]);
-                if(cardinality > max){
-                    max = cardinality;
-                    leaderIndex = index;
-                }
-            }
-
-            this.leader = info.getMembers()[leaderIndex];
-            log.info("New leader: {} with cardinality: {}", this.leader, max);
-        }
-
-        if(amILeader()){
-            log.info("LEADER: I'm leader, notify everyone!");
-            this.sendIAmLeaderMessage();
-        }
-    }
-
-    @Override
-    public void assignNewLeader(SpreadMessage spreadMessage) throws InterruptedException {
-        if(!this.me.equals(spreadMessage.getSender())){
-            leader = spreadMessage.getSender();
-            log.info("Recebida mensagem de novo leader, novo leader é: {}", leader);
-            if(waitStartupDataUpdate){
-                this.requestDataUpdate();
-            }
-        }
-    }
-
-    @Async
-    void requestDataUpdate() {
-        try{
-            log.info("Pedido de informação de startup ao leader: {}", this.leader);
-            connection.multicast(createUnicastMessage(new StartupRequest(), this.leader));
-
-        }catch (SpreadException exception){
-            log.error("Error multicasting message: requestDataUpdate ", exception);
-        }
-        waitStartupDataUpdate = false;
-    }
-
-    @Override
-    public void assignFirstLeader(SpreadGroup spreadGroup) {
-        this.leader = spreadGroup;
-        log.info("Primeiro leader: {}", this.leader);
-    }
-
-    @Override
-    public void requestWhoIsLeader() {
-        log.info("Irei perguntar ao grupo quem é o leader!");
-        try{
-            connection.multicast(createMulticastMessage(new BaseMessage(BaseMessage.TYPE.WHO_IS_LEADER)));
-        } catch (SpreadException exception){
-            log.error("Error multicasting message: requestWhoIsLeader ", exception);
-        }
-    }
-
-    @Override
-    public void whoIsLeaderRequestedNotifyParticipantsWhoIsLeader() {
-        if(this.amILeader()){
-            log.info("LEADER: Alguém perguntou quem é o leader, vou notificar toda a gente que eu sou o leader: {}", this.me);
-            this.sendIAmLeaderMessage();
-        }
-    }
-
-    @Override
-    public boolean doIHaveLeader() {
-        return !(this.leader == null);
-    }
-
-    @Override
-    public void appendDataReceived(SpreadMessage spreadMessage) throws SpreadException {
-        if(!this.amILeader()){
-            NewDataFromLeader appendData = (NewDataFromLeader) spreadMessage.getObject();
-            log.info("Informação recebida do leader: {} para ser replicada!", spreadMessage.getSender());
-            database.save(DataEntity.builder()
-                    .key(appendData.getData().getKey())
-                    .data(appendData.getData() == null ? new DataEntity.Data() : appendData.getData().getData() )
-                    .build());
-
-            WaitingDataWriteCallback waitingDataWriteCallback = waitingDataWritten.get(appendData.getData().getKey());
-            if(waitingDataWriteCallback != null){
-                log.info("Resposta recebida para a key: {}", appendData.getData().getKey());
-                waitingDataWriteCallback.dataWritten(true);
-            }
-        }
-    }
-
-    @Override
-    public void dataRequestedToLeader(SpreadMessage spreadMessage) throws SpreadException {
-        if(this.amILeader()){
-            AskDataToLeader askDataToLeader = (AskDataToLeader) spreadMessage.getObject();
-            log.info("LEADER: {} perguntou-me se tenho informação sobre a key: {}",spreadMessage.getSender(), askDataToLeader.getKey());
-            Optional<DataEntity> data = this.database.findById(askDataToLeader.getKey());
-            if(data.isPresent()){
-                log.info("LEADER: Tenho a informação: {}", data.get());
-                connection.multicast(createUnicastMessage(new ResponseDataFromLeader(data.get()), spreadMessage.getSender()));
-            }else{
-                log.info("LEADER: Não tenho a informação!");
-                connection.multicast(createUnicastMessage(new ResponseDataFromLeader(askDataToLeader.getKey()), spreadMessage.getSender()));
-            }
-        }
-    }
-
-    @Override
-    public void receivedResponseData(SpreadMessage spreadMessage) throws SpreadException {
-        ResponseDataFromLeader data = (ResponseDataFromLeader) spreadMessage.getObject();
-        log.info("Received data from leader: " + data);
-      //  waitingData.get(data.getData().getKey()).dataReceived(data.getData());
-    }
-
-    @Override
-    public void writeDataToLeader(SpreadMessage spreadMessage) throws SpreadException {
-        if(this.amILeader()){
-            WriteDataToLeader data = (WriteDataToLeader) spreadMessage.getObject();
-            log.info("LEADER: Recebi informação para ser escrita: {}", data);
-            this.saveDataAndUpdateParticipants(new DataEntity(data.getDataEntity()));
-        }
-    }
-
-    @Override
-    public void startupDataRequested(SpreadMessage spreadMessage) {
-        if(this.amILeader()){
-            log.info("LEADER: {} pediu informação de startup", spreadMessage.getSender());
-            /*try{
-                connection.multicast(createUnicastMessage(new StartupResponse(this.database.findAll()), spreadMessage.getSender()));
-            }catch (SpreadException exception){
-                System.out.println("Error multicasting message: requestDataUpdate " + exception);
-            }
-            */
-        }
-    }
-
-    @Override
-    public void startupDataResponse(SpreadMessage spreadMessage) throws SpreadException {
-        if(waitStartupDataUpdate){
-            StartupResponse startupResponse = (StartupResponse)spreadMessage.getObject();
-           // this.database.saveAll(startupResponse.getDataEntityList());
-            log.info(this.database.findById("key").toString());
-        }
-        log.info("Update data finished!");
-    }
 
     @Override
     public void askDataResponse(SpreadMessage spreadMessage) throws SpreadException {
@@ -220,37 +65,13 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     }
 
     @Override
-    public void invalidateData(SpreadMessage spreadMessage) throws SpreadException {
-        if(spreadMessage.getSender().equals(this.me)){
-            return;
-        }
-        InvalidateData invalidateData = (InvalidateData) spreadMessage.getObject();
-        log.info("Invalidação recebida para a key: {}", invalidateData.getKey());
-        executeInvalidateData(invalidateData.getKey());
-    }
-
-    private void executeInvalidateData(String key){
-        if(this.database.findById(key).isPresent()){
-            this.database.deleteById(key);
-            log.info("Key: {} invalidada.", key);
-        }else{
-            log.info("Não tinha a key: {}", key);
-        }
-    }
-
-    @Override
-    public boolean isLeaderMechanism() {
-        return this.leaderMechanism;
-    }
-
-    @Override
     public void checkStartup(MembershipInfo info) throws SpreadException {
         if(waitStartupDataUpdate){
             if(info.getMembers().length == 2){
                 log.info("Sou o primeiro");
                 return;
             }
-            log.info("A eleger leader para me ajudar no startup.");
+            log.info("A eleger coordenador para me ajudar no startup.");
             int max = 0;
             int leaderIndex = 0;
             for(int index = 0; index < info.getMembers().length; index++){
@@ -264,21 +85,21 @@ public class LeaderManager implements SpreadMessageListenerInterface {
                 }
             }
 
-            this.leader = info.getMembers()[leaderIndex];
-            log.info("Elegi o leader {} com cardinalidade: {}", this.leader, max);
+            SpreadGroup leader = info.getMembers()[leaderIndex];
+            log.info("Elegi o coordenador {} com cardinalidade: {}", leader, max);
 
             List<DataEntity.DataDto> dataDtos = new ArrayList<>();
             this.database.findAll().forEach( dataEntity -> dataDtos.add(new DataEntity.DataDto(dataEntity)));
 
             log.info("Vou pedir startup para a informação: {}", dataDtos);
-            connection.multicast(createUnicastMessage(new StartupRequestUpdate(dataDtos), this.leader));
+            connection.multicast(createUnicastMessage(new StartupRequestUpdate(dataDtos), leader));
 
         }
     }
 
     @Override
     public void sendStartupData(SpreadMessage spreadMessage) throws SpreadException {
-        log.info("LEADER=={}: Recebi o pedido de ajuda para o startup de: {}", this.me, spreadMessage.getSender());
+        log.info("COORDENADOR=={}: Recebi o pedido de ajuda para o startup de: {}", this.me, spreadMessage.getSender());
         StartupRequestUpdate startupRequestUpdate = (StartupRequestUpdate) spreadMessage.getObject();
 
         List<DataEntity.DataDto> startupResponse = new ArrayList<>();
@@ -286,7 +107,6 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             Optional<DataEntity> dataEntity = this.database.findById(dataDto.getKey());
             dataEntity.ifPresent(entity -> startupResponse.add(new DataEntity.DataDto(entity)));
         });
-
 
         log.info("Vou devolver a seguinte informação de startup: {}", startupResponse);
         connection.multicast(createUnicastMessage(new StartupResponseUpdate(startupResponse), spreadMessage.getSender()));
@@ -335,21 +155,20 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         String key = data.getKey();
 
         if(connection.getPrivateGroup().equals(spreadMessage.getSender())){
-            log.info("Sou eu proprio, LOL");
+            log.debug("Sou eu proprio, LOL");
             return;
         }
 
         if(writeLocks.getOrDefault(key, WRITE_STATE.IDLE).equals(WRITE_STATE.IDLE)){
             log.info("O {} quer escrever a key: {}, OK!", spreadMessage.getSender(), key);
             executeInvalidateData(key);
-            /*
-            try{
-                connection.multicast(createUnicastMessage(new WantToWriteResponse(key), spreadMessage.getSender()));
-            } catch (SpreadException spreadException) {
-                log.error("Error multicasting message: wantToWriteReceived ", spreadException);
+            if(!test_conflict){
+                try{
+                    connection.multicast(createUnicastMessage(new WantToWriteResponse(key), spreadMessage.getSender()));
+                } catch (SpreadException spreadException) {
+                    log.error("Error multicasting message: wantToWriteReceived ", spreadException);
+                }
             }
-
-             */
         }else {
             log.warn("Eu estou no processo de escrever para a key: {}, ATENÇÃO!", key);
             try{
@@ -361,10 +180,19 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         }
     }
 
+    private void executeInvalidateData(String key){
+        if(this.database.findById(key).isPresent()){
+            this.database.deleteById(key);
+            log.info("Key: {} invalidada.", key);
+        }else{
+            log.info("Não tinha a key: {}", key);
+        }
+    }
+
     @Override
     public void conflictReceived(SpreadMessage spreadMessage) throws SpreadException {
         if(connection.getPrivateGroup().equals(spreadMessage.getSender())){
-            log.info("Mensagem de conflict comigo mesmo.");
+            log.debug("Mensagem de conflict comigo mesmo.");
             return;
         }
         WriteConflict writeConflict = (WriteConflict) spreadMessage.getObject();
@@ -377,20 +205,6 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     }
 
     public boolean isStartup(){return waitStartupDataUpdate;}
-    public boolean amILeader(){
-        return this.leader != null && this.leader.equals(this.me);
-    }
-
-    public void sendAppendDataToParticipants(DataEntity data){
-        if(this.amILeader()){
-            log.info("LEADER: A enviar replica de informação para todos os participantes: {}", data);
-            try{
-                connection.multicast(createMulticastMessage(new NewDataFromLeader(data)));
-            } catch (SpreadException spreadException){
-                log.error("Error multicasting message: sendAppendDataToParticipants ", spreadException);
-            }
-        }
-    }
 
     private String getServerName(SpreadGroup group){
         return group.toString().split("#")[1];
@@ -429,96 +243,6 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         return spreadMessage;
     }
 
-
-    private void sendIAmLeaderMessage() {
-        try{
-            connection.multicast(createMulticastMessage(new NewLeader()));
-        }catch (SpreadException exception){
-            log.error("Error multicasting message: sendIAmLeaderMessage ", exception);
-        }
-    }
-
-    private final Map<String, WaitingDataReadCallback> waitingData = new HashMap<>();
-
-    public DataEntity.DataDto requestDataToLeader(Key request) throws InterruptedException {
-        AtomicBoolean received = new AtomicBoolean(false);
-        AtomicReference<DataEntity.DataDto> response = new AtomicReference<>();
-        WaitingDataReadCallback waitingDataReadCallback = (dataEntity) -> {
-            log.info("Pedido de informação ao leader recebido: {}", dataEntity);
-            response.set(dataEntity);
-            received.set(true);
-        };
-
-        try{
-            log.info("Vou pedir informação ao leader, key: {}", request.getKey());
-            connection.multicast(createUnicastMessage(new AskDataToLeader(request.getKey()), this.leader));
-            waitingData.put(request.getKey(), waitingDataReadCallback);
-        }catch (SpreadException exception){
-            log.error("Error multicasting message: requestDataToLeader ", exception);
-        }
-
-        try{
-            waitForResponse(received);
-        }catch (TimeoutException exception){
-            log.info("Não recebi informação do leader.");
-            return null;
-        }finally {
-            waitingData.remove(request.getKey());
-        }
-
-        log.info("Resposta recebida");
-
-        return response.get();
-    }
-
-    private final Map<String, WaitingDataWriteCallback> waitingDataWritten = new HashMap<>();
-
-
-    public boolean writeDataToLeader(Data request) throws InterruptedException {
-        AtomicBoolean received = new AtomicBoolean(false);
-        AtomicReference<Boolean> response = new AtomicReference<>();
-        WaitingDataWriteCallback waitingDataWriteCallback = successful -> {
-            log.info("Pedido de escrita ao leader completado com estado: {}", successful);
-            response.set(successful);
-            received.set(true);
-        };
-
-        try{
-            log.info("Vou pedir ao leader para escrever a informação: {}", request);
-            connection.multicast(createUnicastMessage(
-                    new WriteDataToLeader(new DataEntity(request.getKey(), new DataEntity.Data(request.getData()))),
-                    this.leader));
-
-            waitingDataWritten.put(request.getKey(), waitingDataWriteCallback);
-        }catch (SpreadException exception){
-            log.error("Error multicasting message: writeDataToLeader ", exception);
-        }
-
-        try{
-            waitForResponse(received);
-        }catch (TimeoutException exception){
-            log.info("Não recebi resposta do leader a saber se completou a escrita.");
-            return false;
-        }finally {
-            waitingDataWritten.remove(request.getKey());
-        }
-
-
-        log.info("Informação {} escrita no leader com estado: {}", request,(response.get() ? "successfully" : "unsuccessfully"));
-
-        return response.get();
-    }
-
-    public SpreadGroup getLeader() {
-        return leader;
-    }
-
-    public void saveDataAndUpdateParticipants(DataEntity request) {
-        this.database.save(request);
-        log.info("LEADER: Informação guardada na db: {}", request);
-        this.sendAppendDataToParticipants(request);
-    }
-
     public DataEntity.DataDto requestData(String key) {
         AtomicReference<DataEntity.DataDto> response = new AtomicReference<>(null);
         final AtomicBoolean responseReceived = new AtomicBoolean(false);
@@ -551,21 +275,19 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         return response.get();
     }
 
-
-    public void writeData(DataEntity.DataDto dataDto) {
+    public boolean writeData(DataEntity.DataDto dataDto) {
         if(this.numberOfParticipants == 2){
             log.info("Sou o unico no grupo, vou escrever.");
             this.database.save(new DataEntity(dataDto));
         }else {
-            sendWantToWriteMessage(dataDto);
+            return sendWantToWriteMessage(dataDto);
         }
+        return true;
     }
-
-    private Map<String, WantToWriteData> wantToWriteData = new HashMap<>();
 
     private boolean sendWantToWriteMessage(DataEntity.DataDto dataDto){
         String key = dataDto.getKey();
-
+        boolean success = false;
         writeLocks.put(key, WRITE_STATE.WRITING);
 
         try {
@@ -598,15 +320,17 @@ public class LeaderManager implements SpreadMessageListenerInterface {
                 log.info("Informação {} salva localmente.", dataDto);
             }catch (TimeoutException exception){
                 log.info("Nem todos os participantes responderam, abortar escrita.");
-                return false;
+                success = false;
             }catch(ConflictException conflictException){
                 if(electLeader(conflict.get())){
                     this.database.save(new DataEntity(dataDto));
                     log.info("Informação {} salva localmente.", dataDto);
+                    success = true;
                 }else{
                     if(this.database.findById(key).isPresent()){
                         this.database.deleteById(key);
                     }
+                    success = false;
                 }
             } finally{
                 writeLocks.put(key, WRITE_STATE.IDLE);
@@ -616,9 +340,9 @@ public class LeaderManager implements SpreadMessageListenerInterface {
 
         } catch (SpreadException | InterruptedException spreadException) {
             spreadException.printStackTrace();
-            return false;
+            success = false;
         }
-        return true;
+        return success;
     }
 
     private boolean electLeader(SpreadGroup conflictSender){
@@ -634,19 +358,6 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             log.info("Eu não vou escrever, eu tenho a cardinalidade mais pequena");
             return false;
         }
-    }
-
-    public interface WaitingAllResponses {
-        void allResponsesReceived();
-        void conflict(SpreadGroup conflictSender);
-    }
-
-    public interface WaitingDataReadCallback {
-        void dataReceived(DataEntity.DataDto dataDto);
-    }
-
-    public interface WaitingDataWriteCallback {
-        void dataWritten(boolean successful);
     }
 
     private void waitForResponse(final AtomicBoolean responseReceived) throws InterruptedException, TimeoutException {
@@ -677,6 +388,15 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         }
     }
 
+    public interface WaitingAllResponses {
+        void allResponsesReceived();
+        void conflict(SpreadGroup conflictSender);
+    }
+
+    public interface WaitingDataReadCallback {
+        void dataReceived(DataEntity.DataDto dataDto);
+    }
+
     @lombok.Data
     @RequiredArgsConstructor
     public static class WantToWriteData {
@@ -687,4 +407,5 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             receivedResponses++;
         }
     }
+
 }

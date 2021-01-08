@@ -19,12 +19,12 @@ public class SpreadServer implements Runnable{
     private final String hostname;
     private final String name;
     private final boolean local;
-    private final boolean leader;
+    private final boolean testConflict;
     private final int timeout;
     private final DatabaseRepository database;
     private SpreadConnection connection;
 
-    public SpreadServer(int port, int grpcPort, String groupId, String hostname, String name, boolean local, final DatabaseRepository database, boolean leader, int timeout) {
+    public SpreadServer(int port, int grpcPort, String groupId, String hostname, String name, boolean local, final DatabaseRepository database, final int timeout, final boolean testConflict) {
         this.port = port;
         this.grpcPort = grpcPort;
         this.groupId = groupId;
@@ -32,8 +32,8 @@ public class SpreadServer implements Runnable{
         this.name = name;
         this.local = local;
         this.database = database;
-        this.leader = leader;
         this.timeout = timeout;
+        this.testConflict = testConflict;
     }
 
     @Override
@@ -48,7 +48,7 @@ public class SpreadServer implements Runnable{
             connection.connect(this.local ? InetAddress.getLocalHost() : InetAddress.getByName(hostname),
                     port, name, false, true);
 
-            LeaderManager leaderManager = new LeaderManager(connection, groupId, database, timeout, leader, local);
+            LeaderManager leaderManager = new LeaderManager(connection, groupId, database, timeout, local, testConflict);
 
             //Listener das mensagens multicast
             SpreadMessageListener msgHandling = new SpreadMessageListener(leaderManager);
@@ -62,7 +62,7 @@ public class SpreadServer implements Runnable{
             //GRPC Clientes
             io.grpc.Server svc = ServerBuilder
                     .forPort(this.grpcPort)
-                    .addService(new ClientService(leaderManager, this.database, this.leader ) )
+                    .addService(new ClientService(leaderManager, this.database ) )
                     .build();
 
             svc.start();

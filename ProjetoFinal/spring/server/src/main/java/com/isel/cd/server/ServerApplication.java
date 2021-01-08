@@ -25,10 +25,10 @@ public class ServerApplication implements CommandLineRunner {
     private String serverName;
     @Value("${local}")
     private Boolean local;
-    @Value("${leader}")
-    private Boolean leader;
     @Value("${timeout}")
     private Integer timeout;
+    @Value("${testConflict}")
+    private Boolean testConflict;
     @Autowired
     private DatabaseRepository database;
 
@@ -46,14 +46,11 @@ public class ServerApplication implements CommandLineRunner {
         log.info("groupID: {}", groupID);
         log.info("serverName: {}", serverName);
         log.info("local: {}", local);
-        log.info("leader: {}", leader);
         log.info("timeoutInSec: {}", timeout);
+        log.info("testConflict: {}", testConflict);
 
-
-
-        SpreadServer server = new SpreadServer(spreadPort, grpcPort, groupID, hostname, serverName, local, database, leader, timeout);
+        SpreadServer server = new SpreadServer(spreadPort, grpcPort, groupID, hostname, serverName, local, database, timeout, testConflict);
         server.run();
-
 
         log.info("type exit to exit!");
         Scanner myObj = new Scanner(System.in);

@@ -1,7 +1,6 @@
 package com.isel.cd.server.messages;
 
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 

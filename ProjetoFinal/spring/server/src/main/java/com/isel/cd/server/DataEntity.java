@@ -29,22 +29,10 @@ public class DataEntity implements Serializable{
     @Column(columnDefinition = "jsonb")
     private Data data;
 
-    public DataEntity(String key) {
-        this.key = key;
-    }
-
-    public DataEntity(DataEntity create) {
-        this.key = create.getKey();
-        this.data = create.getData();
-    }
-
     public DataEntity(DataEntity.DataDto create) {
         this.key = create.getKey();
         this.data = new Data(create.getData());
     }
-
-
-
 
     @lombok.Data
     @AllArgsConstructor

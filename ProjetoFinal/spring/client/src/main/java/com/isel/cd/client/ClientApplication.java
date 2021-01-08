@@ -1,8 +1,6 @@
 package com.isel.cd.client;
 
-import io.grpc.Channel;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -85,6 +83,7 @@ public class ClientApplication implements CommandLineRunner {
                             String value = input.split(" ")[2];
                             System.out.println("Write data: " + value + " with key: " + key);
                             write(key, value, serverChannel);
+
                             break;
                         case "exit":
                             System.out.println("Shutting down connections...");
@@ -195,6 +194,13 @@ public class ClientApplication implements CommandLineRunner {
                     .newBlockingStub(channel)
                     .write(Data.newBuilder().setData(value).setKey(key).build());
         }catch (Exception exception){
+            if(exception instanceof StatusRuntimeException){
+                StatusRuntimeException statusRuntimeException = (StatusRuntimeException)exception;
+                if(statusRuntimeException.getStatus().equals(Status.DATA_LOSS)){
+                    System.out.println("Tenta outra vez.");
+                    return;
+                }
+            }
             System.out.println("Exception occurred on write, try new server! " + exception);
             channel = createRandomServerChannel();
             if(channel == null){
