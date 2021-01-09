@@ -29,4 +29,9 @@ public class ClientObserver implements StreamObserver<Void>{
         log.info("Completed from client");
         clientManager.removeClient(clientId);
     }
+
+    public void onCancel(){
+        log.info("Client {} left without onCompleted", clientId);
+        clientManager.removeClient(clientId);
+    }
 }

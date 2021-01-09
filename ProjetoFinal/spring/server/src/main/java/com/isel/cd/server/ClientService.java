@@ -32,27 +32,30 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
     @Override
     public void read(Key request, io.grpc.stub.StreamObserver<Data> responseObserver) {
         try{
-            if(leaderManager.isStartup()){
+            if(leaderManager.isServerStartingUp()){
                 log.info("Servidor em startup...");
                 responseObserver.onNext(Data.newBuilder().build());
                 responseObserver.onCompleted();
             }
 
-            log.info("Cliente pediu informação com key: {}",request.getKey());
+            log.info("Cliente pediu informacao com [{}]",request.getKey());
 
             String key = request.getKey();
             Optional<DataEntity> data = this.database.findById(key);
 
             DataEntity.DataDto response;
             if(data.isEmpty()){
-                log.info("Não tenho a key: " + key + ", vou pedir....");
+                log.info("Não tenho a [{}], vou pedir...", key);
                 response = this.leaderManager.requestData(request.getKey());
-                if(response != null){
-                    log.info("Outro servidor tinha a data, vou guardar uma replica localmente.");
-                    this.database.save(new DataEntity(response));
-                }
             } else {
-                response = new DataEntity.DataDto(data.get());
+                DataEntity local = data.get();
+                if(local.getInvalidate() != null && local.getInvalidate().equals(Boolean.TRUE)){
+                    log.info("Tenho replica local mas esta invalida [{}] invalida, vou pedir...", key);
+                    response = this.leaderManager.requestData(request.getKey());
+                }else{
+                    response = new DataEntity.DataDto(data.get());
+                    log.info("Tenho replica local {}", response);
+                }
             }
 
             log.info("A enviar resposta para o cliente: {}",response);
@@ -71,7 +74,7 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
     @Override
     public void write(Data request, StreamObserver<Void> responseObserver) {
         try{
-            if(leaderManager.isStartup()){
+            if(leaderManager.isServerStartingUp()){
                 log.info("Servidor em startup...");
                 responseObserver.onNext(Void.newBuilder().build());
                 responseObserver.onCompleted();

@@ -21,16 +21,16 @@ public class SpreadMessageListener implements BasicMessageListener {
                 BaseMessage message = (BaseMessage)spreadMessage.getObject();
                 switch (message.getType()){
                     case ASK_DATA:
-                        spreadMessageListenerInterface.askDataResponse(spreadMessage);
+                        spreadMessageListenerInterface.askData(spreadMessage);
                         break;
                     case ASK_DATA_RESPONSE:
-                        spreadMessageListenerInterface.askDataResponseReceived(spreadMessage);
+                        spreadMessageListenerInterface.askDataResponse(spreadMessage);
                         break;
                     case STARTUP_REQUEST_UPDATE:
-                        spreadMessageListenerInterface.sendStartupData(spreadMessage);
+                        spreadMessageListenerInterface.startupData(spreadMessage);
                         break;
                     case STARTUP_RESPONSE_UPDATE:
-                        spreadMessageListenerInterface.startupDataReceived(spreadMessage);
+                        spreadMessageListenerInterface.startupDataResponse(spreadMessage);
                         break;
                     case WANT_TO_WRITE:
                         spreadMessageListenerInterface.wantToWriteReceived(spreadMessage);
@@ -41,25 +41,32 @@ public class SpreadMessageListener implements BasicMessageListener {
                     case WRITE_CONFLICT:
                         spreadMessageListenerInterface.conflictReceived(spreadMessage);
                         break;
+                    case DATA_WRITTEN:
+                        spreadMessageListenerInterface.dataWritten(spreadMessage);
+                        break;
+                    case REVALIDATE_DATA:
+                        spreadMessageListenerInterface.revalidateData(spreadMessage);
+                        break;
                     default:
                         log.warn("Unknown regular message type.");
                 }
             }
             else if(spreadMessage.isMembership()){
                 MembershipInfo info = spreadMessage.getMembershipInfo();
-                spreadMessageListenerInterface.updateNumberOfParticipants(info.getMembers().length);
+                int groupSize = info.getMembers().length;
+                spreadMessageListenerInterface.updateNumberOfParticipants(groupSize);
 
                 if(info.isRegularMembership()) {
                     if(info.isCausedByJoin()) {
-                        log.debug( "{} JOINED GROUP", info.getJoined());
+                        log.info( "{} JOINED GROUP. group size = {}", info.getJoined(), groupSize);
                         //Configuration service already up
-                        if(info.getMembers().length >= 2) {
+                        if(groupSize >= 2) {
                             spreadMessageListenerInterface.checkStartup(info);
                         }
                     } else if(info.isCausedByLeave()) {
-                        log.debug( "{} LEFT GROUP", info.getLeft());
+                        log.info( "{} LEFT GROUP. group size = {}", info.getLeft(), groupSize);
                     }else if(info.isCausedByDisconnect()) {
-                        log.debug( "{} DISCONECTED", info.getDisconnected());
+                        log.info( "{} DISCONECTED. group size = {}", info.getDisconnected(), groupSize);
                     }
                 }
             }

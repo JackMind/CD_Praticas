@@ -15,6 +15,8 @@ public class BaseMessage implements Serializable {
     }
 
     public enum TYPE{
+        REVALIDATE_DATA,
+        DATA_WRITTEN,
         WRITE_CONFLICT,
         WANT_TO_WRITE_RESPONSE,
         WANT_TO_WRITE,

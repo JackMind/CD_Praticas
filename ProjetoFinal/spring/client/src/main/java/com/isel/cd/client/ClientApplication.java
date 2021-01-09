@@ -184,7 +184,8 @@ public class ClientApplication implements CommandLineRunner {
             if(channel == null){
                 throw new Exception("No servers available.");
             }
-            return read(key, channel);
+            //return read(key, channel);
+            return null;
         }
     }
 
@@ -206,7 +207,7 @@ public class ClientApplication implements CommandLineRunner {
             if(channel == null){
                 throw new Exception("No servers available.");
             }
-            write(key, value, channel);
+            //write(key, value, channel);
         }
     }
 

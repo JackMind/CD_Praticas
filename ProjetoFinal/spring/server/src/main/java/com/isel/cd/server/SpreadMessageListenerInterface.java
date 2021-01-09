@@ -7,15 +7,15 @@ import spread.SpreadMessage;
 
 public interface SpreadMessageListenerInterface {
 
-    void askDataResponse(SpreadMessage spreadMessage) throws SpreadException;
+    void askData(SpreadMessage spreadMessage) throws SpreadException;
 
-    void askDataResponseReceived(SpreadMessage spreadMessage) throws SpreadException;
+    void askDataResponse(SpreadMessage spreadMessage) throws SpreadException;
 
     void checkStartup(MembershipInfo info) throws SpreadException;
 
-    void sendStartupData(SpreadMessage spreadMessage) throws SpreadException;
+    void startupData(SpreadMessage spreadMessage) throws SpreadException;
 
-    void startupDataReceived(SpreadMessage spreadMessage) throws SpreadException;
+    void startupDataResponse(SpreadMessage spreadMessage) throws SpreadException;
 
     void updateNumberOfParticipants(int numberOfParticipants);
 
@@ -24,4 +24,8 @@ public interface SpreadMessageListenerInterface {
     void wantToWriteReceived(SpreadMessage spreadMessage) throws SpreadException;
 
     void conflictReceived(SpreadMessage spreadMessage) throws SpreadException;
+
+    void dataWritten(SpreadMessage spreadMessage) throws SpreadException;
+
+    void revalidateData(SpreadMessage spreadMessage) throws SpreadException;
 }

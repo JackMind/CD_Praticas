@@ -58,7 +58,10 @@ public class ConfigurationserviceApplication implements CommandLineRunner {
             ClientManager clientManager = new ClientManager(knownServers, knownGroups);
 
             //GRPC C
-            io.grpc.Server svc = ServerBuilder.forPort(grpcServerPort).addService(new ConfigurationService(clientManager)).build();
+            io.grpc.Server svc = ServerBuilder
+                    .forPort(grpcServerPort)
+                    .addService(new ConfigurationService(clientManager))
+                    .build();
             svc.start();
             log.info("Grpc Server started, listening on " + grpcServerPort);
 

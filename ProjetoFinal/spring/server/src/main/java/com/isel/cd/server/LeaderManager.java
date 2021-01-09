@@ -21,7 +21,6 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     private final boolean local;
     private final boolean test_conflict;
 
-    private final Map<String, WRITE_STATE> writeLocks = new HashMap<>();
     private final Map<String, WaitingDataReadCallback> waitingData = new HashMap<>();
     private final Map<String, WantToWriteData> wantToWriteData = new HashMap<>();
 
@@ -40,26 +39,40 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     private volatile boolean waitStartupDataUpdate = true;
 
     @Override
-    public void askDataResponse(SpreadMessage spreadMessage) throws SpreadException {
+    public void askData(SpreadMessage spreadMessage) throws SpreadException {
+        if(this.isSelfMessage(spreadMessage)){
+            return;
+        }
         AskData askData = (AskData) spreadMessage.getObject();
-        log.info("{} está a procura da informação key: {}", spreadMessage.getSender(), askData.getKey());
-        Optional<DataEntity> dataEntity = this.database.findById(askData.getKey());
-        if (dataEntity.isPresent()) {
-            log.info("Eu tenho a informação: {}, vou enviar para: {}", dataEntity.get(), spreadMessage.getSender());
-            try{
-                connection.multicast(createUnicastMessage(new AskDataResponse(dataEntity.get()),spreadMessage.getSender() ));
-            }catch (SpreadException exception){
-                log.error("Error multicasting message: askDataResponse ", exception);
+        String key = askData.getKey();
+        log.info("{} está a procura da informacao [{}]", spreadMessage.getSender(), key);
+        Optional<DataEntity> dataEntity = this.database.findById(key);
+        if(dataEntity.isPresent()){
+            DataEntity localData = dataEntity.get();
+            if ( localData.getInvalidate() == null || localData.getInvalidate().equals(Boolean.FALSE) ) {
+                log.info("Eu tenho a informação: {}, vou enviar para: {}", dataEntity.get(), spreadMessage.getSender());
+                try{
+                    connection.multicast(createUnicastMessage(new AskDataResponse(dataEntity.get()),spreadMessage.getSender() ));
+                }catch (SpreadException exception){
+                    log.error("Error multicasting message: askDataResponse ", exception);
+                }
             }
+            if( localData.getInvalidate() != null ){
+                log.info("Informação [{}] é invalida localmente.", key);
+            }
+        }else {
+            log.info("Nao tenho [{}]", key);
         }
     }
 
     @Override
-    public void askDataResponseReceived(SpreadMessage spreadMessage) throws SpreadException {
+    public void askDataResponse(SpreadMessage spreadMessage) throws SpreadException {
         AskDataResponse askDataResponse = (AskDataResponse) spreadMessage.getObject();
-        WaitingDataReadCallback callback = waitingData.get(askDataResponse.getDataDto().getKey());
+        String key = askDataResponse.getDataDto().getKey();
+
+        WaitingDataReadCallback callback = waitingData.get(key);
         if(callback != null){
-            log.info("Recebi resposta da informação que pedi: {}", askDataResponse.getDataDto());
+            log.info("Recebi resposta da informacao que pedi: {}", askDataResponse.getDataDto());
             callback.dataReceived(askDataResponse.getDataDto());
         }
     }
@@ -79,7 +92,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
                     continue;
                 }
                 int cardinality = this.getServerNameCardinality(info.getMembers()[index]);
-                if(cardinality > max){
+                if(cardinality > max && cardinality != this.getServerNameCardinality(this.connection.getPrivateGroup())){
                     max = cardinality;
                     leaderIndex = index;
                 }
@@ -89,16 +102,21 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             log.info("Elegi o coordenador {} com cardinalidade: {}", leader, max);
 
             List<DataEntity.DataDto> dataDtos = new ArrayList<>();
-            this.database.findAll().forEach( dataEntity -> dataDtos.add(new DataEntity.DataDto(dataEntity)));
+            this.database.findAll().forEach( dataEntity -> {
+                dataEntity.setInvalidate(true);
+                dataDtos.add(new DataEntity.DataDto(dataEntity));
+                this.database.save(dataEntity);
+            });
+            log.info("Toda a informacao local foi invalidada");
 
-            log.info("Vou pedir startup para a informação: {}", dataDtos);
+            log.info("Vou pedir startup para a informacao: {}", dataDtos);
             connection.multicast(createUnicastMessage(new StartupRequestUpdate(dataDtos), leader));
 
         }
     }
 
     @Override
-    public void sendStartupData(SpreadMessage spreadMessage) throws SpreadException {
+    public void startupData(SpreadMessage spreadMessage) throws SpreadException {
         log.info("COORDENADOR=={}: Recebi o pedido de ajuda para o startup de: {}", this.me, spreadMessage.getSender());
         StartupRequestUpdate startupRequestUpdate = (StartupRequestUpdate) spreadMessage.getObject();
 
@@ -108,21 +126,27 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             dataEntity.ifPresent(entity -> startupResponse.add(new DataEntity.DataDto(entity)));
         });
 
-        log.info("Vou devolver a seguinte informação de startup: {}", startupResponse);
+        log.info("Vou devolver a seguinte informacao de startup: {}", startupResponse);
         connection.multicast(createUnicastMessage(new StartupResponseUpdate(startupResponse), spreadMessage.getSender()));
     }
 
     @Override
-    public void startupDataReceived(SpreadMessage spreadMessage) throws SpreadException {
+    public void startupDataResponse(SpreadMessage spreadMessage) throws SpreadException {
         StartupResponseUpdate startupResponseUpdate = (StartupResponseUpdate) spreadMessage.getObject();
-        log.info("Recebi informação de startup do leader: {} com informação: {}", spreadMessage.getSender(), startupResponseUpdate);
+        log.info("Recebi informacao de startup do leader: {} = {}", spreadMessage.getSender(), startupResponseUpdate);
         startupResponseUpdate.getDataDtoList().forEach(dataDto -> {
             Optional<DataEntity> dataEntity = this.database.findById(dataDto.getKey());
-            dataEntity.ifPresent(entity -> {
-                entity.setData(new DataEntity.Data(dataDto.getData()) );
-                this.database.save(entity);
+            dataEntity.ifPresent(newLocalEntity -> {
+                newLocalEntity.setData(new DataEntity.Data(dataDto.getData()) );
+                this.database.save(newLocalEntity);
+                log.info("Validada: {}", newLocalEntity);
             });
         });
+
+        List<String> allLocalKeys = new ArrayList<>();
+        this.database.findAll().forEach(dataEntity -> allLocalKeys.add(dataEntity.getKey()));
+        allLocalKeys.forEach(this::deleteIfExistsAndIsInvalidated);
+
         log.info("Startup completo.");
         waitStartupDataUpdate = false;
     }
@@ -136,11 +160,11 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     public void wantToWriteResponse(SpreadMessage spreadMessage) throws SpreadException {
         String key = ((WantToWriteResponse) spreadMessage.getObject()).getKey();
 
-        log.info("Resposta de {} para poder escrever a key: {}.", spreadMessage.getSender(), key);
+        log.info("Resposta de {} para poder escrever a key: [{}].", spreadMessage.getSender(), key);
         if(wantToWriteData.containsKey(key)){
             WantToWriteData data = wantToWriteData.get(key);
             data.increment();
-            log.info("Resposta recebidas para key: {} -> {}", key, data.getReceivedResponses());
+            log.info("Resposta recebidas para key: [{}] -> {}", key, data.getReceivedResponses());
             if(data.getReceivedResponses() >= this.numberOfParticipants - 2 /*self e configuration*/){
                 data.getCallback().allResponsesReceived();
             }
@@ -154,13 +178,13 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         DataEntity.DataDto data = wantToWrite.getData();
         String key = data.getKey();
 
-        if(connection.getPrivateGroup().equals(spreadMessage.getSender())){
+        if(this.isSelfMessage(spreadMessage)){
             log.debug("Sou eu proprio, LOL");
             return;
         }
 
-        if(writeLocks.getOrDefault(key, WRITE_STATE.IDLE).equals(WRITE_STATE.IDLE)){
-            log.info("O {} quer escrever a key: {}, OK!", spreadMessage.getSender(), key);
+        if(!wantToWriteData.containsKey(key)){
+            log.info("O {} quer escrever a key: [{}]. OK!", spreadMessage.getSender(), key);
             executeInvalidateData(key);
             if(!test_conflict){
                 try{
@@ -170,7 +194,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
                 }
             }
         }else {
-            log.warn("Eu estou no processo de escrever para a key: {}, ATENÇÃO!", key);
+            log.warn("Eu estou no processo de escrever para a key: [{}], FIGHT!", key);
             try{
                 connection.multicast(createMulticastMessage(new WriteConflict(data)));
             } catch (SpreadException spreadException){
@@ -181,30 +205,64 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     }
 
     private void executeInvalidateData(String key){
-        if(this.database.findById(key).isPresent()){
-            this.database.deleteById(key);
-            log.info("Key: {} invalidada.", key);
+        Optional<DataEntity> dataEntity = this.database.findById(key);
+        if(dataEntity.isPresent()){
+            DataEntity dataEntity1 = dataEntity.get();
+
+            dataEntity1.setInvalidate(true);
+
+            this.database.save(dataEntity1);
+            log.info("Informacao com key: [{}] invalidada.", key);
         }else{
-            log.info("Não tinha a key: {}", key);
+            log.info("Nao tenho a key [{}]", key);
         }
     }
 
     @Override
     public void conflictReceived(SpreadMessage spreadMessage) throws SpreadException {
-        if(connection.getPrivateGroup().equals(spreadMessage.getSender())){
+        if(this.isSelfMessage(spreadMessage)){
             log.debug("Mensagem de conflict comigo mesmo.");
             return;
         }
         WriteConflict writeConflict = (WriteConflict) spreadMessage.getObject();
         String key = writeConflict.getDataDto().getKey();
 
-        if(writeLocks.containsKey(key)){
-            log.info("Conflicto recebido para a key: {} do {}", key, spreadMessage.getSender());
+        if(wantToWriteData.containsKey(key)){
+            log.info("Conflicto recebido para a key: [{}] do {}", key, spreadMessage.getSender());
             wantToWriteData.get(key).getCallback().conflict(spreadMessage.getSender());
         }
     }
 
-    public boolean isStartup(){return waitStartupDataUpdate;}
+    @Override
+    public void dataWritten(SpreadMessage spreadMessage) throws SpreadException {
+        if(isSelfMessage(spreadMessage)){
+            return;
+        }
+        DataWritten dataWritten = (DataWritten) spreadMessage.getObject();
+        String key = dataWritten.getKey();
+
+        log.info("Informacao key: [{}] foi escrita com sucesso a eliminar replica local", key);
+        deleteIfExistsAndIsInvalidated(key);
+    }
+
+    @Override
+    public void revalidateData(SpreadMessage spreadMessage) throws SpreadException {
+        if(isSelfMessage(spreadMessage)){
+            return;
+        }
+        RevalidateData revalidateData = (RevalidateData) spreadMessage.getObject();
+        String key = revalidateData.getKey();
+
+        Optional<DataEntity> localData = this.database.findById(key);
+        if(localData.isPresent()){
+            DataEntity data = localData.get();
+            data.setInvalidate(false);
+            this.database.save(data);
+            log.info("Informacao com key: [{}] revalidada.", key);
+        }
+    }
+
+    public boolean isServerStartingUp(){return waitStartupDataUpdate;}
 
     private String getServerName(SpreadGroup group){
         return group.toString().split("#")[1];
@@ -248,21 +306,27 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         final AtomicBoolean responseReceived = new AtomicBoolean(false);
 
         WaitingDataReadCallback waitingDataReadCallback = (dataDto) -> {
-            log.info("Informação pedida recebida para a data: {} com informação: {}", key, dataDto);
+            log.info("Informacao pedida recebida : {}", dataDto);
             response.set(dataDto);
             responseReceived.set(true);
         };
 
         try{
-            log.info("Vou pedir a todos, se alguém tem: {}", key );
+            log.info("Vou pedir a todos, se alguem tem: [{}]", key );
             connection.multicast(createMulticastMessage(new AskData(key)));
 
             waitingData.put(key, waitingDataReadCallback);
 
             try{
                 waitForResponse(responseReceived);
+                if(response.get() != null){
+                    DataEntity newLocalData = new DataEntity(response.get());
+                    this.database.saveAndFlush(newLocalData);
+                    log.info("Guardei uma copia local de: {}", newLocalData);
+
+                }
             }catch (TimeoutException exception){
-                log.info("Não recebi resposta para a informação que pedi.");
+                log.info("Nao recebi resposta para a informacao que pedi.");
                 return  null;
             }finally {
                 waitingData.remove(key);
@@ -288,7 +352,6 @@ public class LeaderManager implements SpreadMessageListenerInterface {
     private boolean sendWantToWriteMessage(DataEntity.DataDto dataDto){
         String key = dataDto.getKey();
         boolean success = false;
-        writeLocks.put(key, WRITE_STATE.WRITING);
 
         try {
             final AtomicBoolean responseReceived = new AtomicBoolean(false);
@@ -297,14 +360,13 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             WaitingAllResponses waitingAllResponses = new WaitingAllResponses() {
                 @Override
                 public void allResponsesReceived() {
-                    log.info("Recebi confirmação para para escrever a key: {} de todos os participantes", key);
+                    log.info("Recebi confirmacao para para escrever a key: [{}] de todos os participantes", key);
                     responseReceived.set(true);
                 }
 
                 @Override
                 public void conflict(SpreadGroup conflictSender) {
                     log.info("Conflicto com {}!", conflictSender);
-                    writeLocks.put(key, WRITE_STATE.CONFLICT);
                     conflict.set(conflictSender);
                 }
             };
@@ -316,24 +378,16 @@ public class LeaderManager implements SpreadMessageListenerInterface {
 
             try{
                 waitForResponse(responseReceived, conflict);
-                this.database.save(new DataEntity(dataDto));
-                log.info("Informação {} salva localmente.", dataDto);
+                saveDataLocally(dataDto);
+                log.info("Replica {} guardada localmente.", dataDto);
+                success = true;
             }catch (TimeoutException exception){
                 log.info("Nem todos os participantes responderam, abortar escrita.");
+                sendRevalidateData(key);
                 success = false;
             }catch(ConflictException conflictException){
-                if(electLeader(conflict.get())){
-                    this.database.save(new DataEntity(dataDto));
-                    log.info("Informação {} salva localmente.", dataDto);
-                    success = true;
-                }else{
-                    if(this.database.findById(key).isPresent()){
-                        this.database.deleteById(key);
-                    }
-                    success = false;
-                }
+                success = handleConflict(conflict.get(), dataDto);
             } finally{
-                writeLocks.put(key, WRITE_STATE.IDLE);
                 wantToWriteData.remove(key);
             }
 
@@ -343,6 +397,53 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             success = false;
         }
         return success;
+    }
+
+    private boolean handleConflict(SpreadGroup conflictWith, DataEntity.DataDto dataDto){
+        if(electLeader(conflictWith)){
+            saveDataLocally(dataDto);
+            log.info("Informação {} salva localmente, apos conflito com: {}.", dataDto, conflictWith);
+            return true;
+        }else{
+            deleteIfExists(dataDto.getKey());
+            return false;
+        }
+    }
+
+    private void deleteIfExists(String key){
+        if(this.database.findById(key).isPresent()){
+            this.database.deleteById(key);
+        }
+    }
+
+    private void deleteIfExistsAndIsInvalidated(String key){
+        Optional<DataEntity> dataEntity = this.database.findById(key);
+        if(dataEntity.isPresent() && dataEntity.get().getInvalidate().equals(Boolean.TRUE)){
+            this.database.deleteById(key);
+            log.info("Informacao removida localmente: [{}]", key);
+        }
+    }
+
+    private void sendRevalidateData(String key) {
+        log.info("A enviar mensagem para revalidacao da key: [{}]", key);
+        try{
+            connection.multicast(createMulticastMessage( new RevalidateData(key) ));
+        }catch (SpreadException exception){
+            log.error("Error multicasting message: sendRevalidateData ", exception);
+        }
+    }
+
+    private void saveDataLocally(DataEntity.DataDto dataDto){
+        this.database.save(new DataEntity(dataDto));
+        sendDataWritten(dataDto.getKey());
+    }
+    private void sendDataWritten(String key) {
+        log.info("A enviar confirmacao de escrita da key: [{}]", key);
+        try{
+            connection.multicast(createMulticastMessage( new DataWritten(key) ));
+        }catch (SpreadException exception){
+            log.error("Error multicasting message: sendDataWritten ", exception);
+        }
     }
 
     private boolean electLeader(SpreadGroup conflictSender){
@@ -355,7 +456,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             log.info("Eu tenho a cardinalidade maior eu vou escrever");
             return true;
         }else{
-            log.info("Eu não vou escrever, eu tenho a cardinalidade mais pequena");
+            log.info("Eu nao vou escrever, eu tenho a cardinalidade mais pequena");
             return false;
         }
     }
@@ -395,6 +496,10 @@ public class LeaderManager implements SpreadMessageListenerInterface {
 
     public interface WaitingDataReadCallback {
         void dataReceived(DataEntity.DataDto dataDto);
+    }
+
+    private boolean isSelfMessage(SpreadMessage spreadMessage){
+        return this.connection.getPrivateGroup().equals(spreadMessage.getSender());
     }
 
     @lombok.Data

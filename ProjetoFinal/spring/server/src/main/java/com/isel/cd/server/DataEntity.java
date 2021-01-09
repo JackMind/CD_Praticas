@@ -25,6 +25,8 @@ public class DataEntity implements Serializable{
     @Id
     private String key;
 
+    private Boolean invalidate;
+
     @Type(type = "jsonb")
     @Column(columnDefinition = "jsonb")
     private Data data;
