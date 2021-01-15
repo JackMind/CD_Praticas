@@ -23,9 +23,10 @@ import java.util.Scanner;
 @Slf4j
 public class ConfigurationserviceApplication implements CommandLineRunner {
 
-    @Value("#{${knowngroups}}")
+    /*
+    @Value("${knowngroups}")
     private Map<String, String> knownGroups;
-    @Value("#{${knownservers}}")
+    @Value("${knownservers}")
     private Map<String, Integer> knownServers;
     @Value("${grpcServerPort}")
     private Integer grpcServerPort;
@@ -38,6 +39,10 @@ public class ConfigurationserviceApplication implements CommandLineRunner {
     @Value("${local}")
     private Boolean local;
 
+
+     */
+    @Autowired
+    private Configs configs;
     public static void main(String[] args) {
         SpringApplication.run(ConfigurationserviceApplication.class, args);
     }
@@ -46,37 +51,37 @@ public class ConfigurationserviceApplication implements CommandLineRunner {
     public void run(String... args) {
 
         log.info("Initializing with settings...");
-        log.info("hostname: {}", hostname);
-        log.info("spreadPort: {}", SpreadServerPort);
-        log.info("grpcPort: {}", grpcServerPort);
-        log.info("local: {}", local);
-        log.info("knownServers: {}", knownServers);
-        log.info("knownGroups: {}", knownGroups);
+        log.info("hostname: {}", configs.getHostname());
+        log.info("spreadPort: {}", configs.getSpreadServerPort());
+        log.info("grpcPort: {}", configs.getGrpcServerPort());
+        log.info("local: {}", configs.getLocal());
+        log.info("knownServers: {}", configs.getKnownServers());
+        log.info("knownGroups: {}", configs.getKnownGroups());
 
         try {
 
-            ClientManager clientManager = new ClientManager(knownServers, knownGroups);
+            ClientManager clientManager = new ClientManager(configs.getKnownServers(), configs.getKnownGroups());
 
             //GRPC C
             io.grpc.Server svc = ServerBuilder
-                    .forPort(grpcServerPort)
+                    .forPort(configs.getGrpcServerPort())
                     .addService(new ConfigurationService(clientManager))
                     .build();
             svc.start();
-            log.info("Grpc Server started, listening on " + grpcServerPort);
+            log.info("Grpc Server started, listening on " + configs.getGrpcServerPort());
 
             new Thread(clientManager).start();
 
 
             //SPREAD Servidores
             SpreadConnection connection = new SpreadConnection();
-            connection.connect(local ? InetAddress.getLocalHost() : InetAddress.getByName(hostname),
-                    SpreadServerPort, "Service", false, true);
+            connection.connect(configs.getLocal() ? InetAddress.getLocalHost() : InetAddress.getByName(configs.getHostname()),
+                    configs.getSpreadServerPort(), "Service", false, true);
 
             connection.add(new MessageListener(clientManager));
 
             SpreadGroup group = new SpreadGroup();
-            group.join(connection, SpreadGroupName);
+            group.join(connection, configs.getSpreadGroupName());
 
 
             Scanner myObj = new Scanner(System.in);

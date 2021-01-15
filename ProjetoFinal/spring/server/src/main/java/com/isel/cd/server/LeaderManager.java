@@ -74,6 +74,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         if(callback != null){
             log.info("Recebi resposta da informacao que pedi: {}", askDataResponse.getDataDto());
             callback.dataReceived(askDataResponse.getDataDto());
+            waitingData.remove(key);
         }
     }
 
@@ -138,14 +139,12 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             Optional<DataEntity> dataEntity = this.database.findById(dataDto.getKey());
             dataEntity.ifPresent(newLocalEntity -> {
                 newLocalEntity.setData(new DataEntity.Data(dataDto.getData()) );
+                newLocalEntity.setInvalidate(false);
                 this.database.save(newLocalEntity);
                 log.info("Validada: {}", newLocalEntity);
             });
         });
 
-        List<String> allLocalKeys = new ArrayList<>();
-        this.database.findAll().forEach(dataEntity -> allLocalKeys.add(dataEntity.getKey()));
-        allLocalKeys.forEach(this::deleteIfExistsAndIsInvalidated);
 
         log.info("Startup completo.");
         waitStartupDataUpdate = false;
@@ -241,7 +240,6 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         DataWritten dataWritten = (DataWritten) spreadMessage.getObject();
         String key = dataWritten.getKey();
 
-        log.info("Informacao key: [{}] foi escrita com sucesso a eliminar replica local", key);
         deleteIfExistsAndIsInvalidated(key);
     }
 
@@ -372,6 +370,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
             };
 
             wantToWriteData.put(key, new WantToWriteData(waitingAllResponses));
+            executeInvalidateData(key);
 
             log.info("Vou perguntar aos participantes se posso escrever.");
             connection.multicast(createMulticastMessage(new WantToWrite(dataDto)));
@@ -418,9 +417,11 @@ public class LeaderManager implements SpreadMessageListenerInterface {
 
     private void deleteIfExistsAndIsInvalidated(String key){
         Optional<DataEntity> dataEntity = this.database.findById(key);
-        if(dataEntity.isPresent() && dataEntity.get().getInvalidate().equals(Boolean.TRUE)){
-            this.database.deleteById(key);
-            log.info("Informacao removida localmente: [{}]", key);
+        if(dataEntity.isPresent()){
+            if(dataEntity.get().getInvalidate() != null && dataEntity.get().getInvalidate().equals(Boolean.TRUE)){
+                this.database.deleteById(key);
+                log.info("Informacao removida localmente: [{}]", key);
+            }
         }
     }
 
@@ -437,6 +438,7 @@ public class LeaderManager implements SpreadMessageListenerInterface {
         this.database.save(new DataEntity(dataDto));
         sendDataWritten(dataDto.getKey());
     }
+
     private void sendDataWritten(String key) {
         log.info("A enviar confirmacao de escrita da key: [{}]", key);
         try{

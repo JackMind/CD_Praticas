@@ -50,8 +50,8 @@ public class ClientService extends ClientServiceGrpc.ClientServiceImplBase {
             } else {
                 DataEntity local = data.get();
                 if(local.getInvalidate() != null && local.getInvalidate().equals(Boolean.TRUE)){
-                    log.info("Tenho replica local mas esta invalida [{}] invalida, vou pedir...", key);
-                    response = this.leaderManager.requestData(request.getKey());
+                    log.info("Tenho replica local mas esta invalida [{}] invalida", key);
+                    response = null;
                 }else{
                     response = new DataEntity.DataDto(data.get());
                     log.info("Tenho replica local {}", response);

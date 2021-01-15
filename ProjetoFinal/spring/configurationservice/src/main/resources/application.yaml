@@ -1,0 +1,22 @@
+config:
+  knownservers:
+    Server1: "9000"
+    Server2: "9000"
+    Server3: "9000"
+    Server4: "9001"
+    Server5: "9001"
+    Server6: "9001"
+    Server7: "9002"
+    Server8: "9002"
+    Server9: "9002"
+
+  knowngroups:
+    spreadNode1: "34.105.229.72"
+    spreadNode2: "35.246.44.251"
+    spreadNode3: "34.71.151.254"
+
+  grpcServerPort: 6000
+  SpreadServerPort: 4803
+  SpreadGroupName: GRUPO123
+  hostname: localhost
+  local: true
