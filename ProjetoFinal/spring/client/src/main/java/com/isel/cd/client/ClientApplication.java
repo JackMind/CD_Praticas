@@ -108,6 +108,9 @@ public class ClientApplication implements CommandLineRunner {
                         case "ls":
                             printServerList();
                             break;
+                        case "extreme":
+                            extreme(serverChannel);
+                            break;
                         default:
                             System.out.println("Option: " + option);
                             System.out.println("Invalid option. [w <key> <value> , r <key>, exit]");
@@ -209,6 +212,31 @@ public class ClientApplication implements CommandLineRunner {
             }
             //write(key, value, channel);
         }
+    }
+
+
+    private void extreme(ManagedChannel serverChannel){
+        try{
+            while(true) {
+
+                //ler valor de "chave"
+                Data data = read("KX", serverChannel);
+
+                if(data != null && !data.getData().equals("")) {
+                    System.out.println("chave: " + data.getKey() + " | valor: " + data.getData());
+
+                    //escrever "chave" => (valor + 1)
+                    int valor = Integer.parseInt(data.getData()) + 1 ;
+                    write("KX", String.valueOf(valor), serverChannel);
+                }
+
+                Thread.sleep(500);
+
+            }
+        }catch (Exception exception){
+
+        }
+
     }
 
 }

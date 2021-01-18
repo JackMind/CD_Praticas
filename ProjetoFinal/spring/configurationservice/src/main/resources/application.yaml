@@ -11,9 +11,9 @@ config:
     Server9: "9002"
 
   knowngroups:
-    spreadNode1: "34.105.204.203"
+    spreadNode1: "35.246.44.251"
     spreadNode2: "35.197.220.52"
-    spreadNode3: "35.234.137.51"
+    spreadNode3: "34.105.204.203"
 
   grpcServerPort: 6000
   SpreadServerPort: 4803
